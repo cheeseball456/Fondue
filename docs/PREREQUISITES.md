@@ -102,6 +102,9 @@ The Fondue repository is public. If you push to it, set up secret scanning first
   turns on the push-time scan: a Git `pre-push` hook for plain git, and a `jj push` alias
   for jj. Both run the same script, `scripts/secret-scan`, which scans every commit that has
   not been published yet (in a jj repository that includes the working-copy commit).
+- **Works from a jj workspace too.** In a secondary jj workspace (created with `jj workspace add`, no `.git`
+  folder of its own) the scan finds the shared git store through jj, so `jj push` works there as well. If it
+  cannot find that store it blocks the push rather than guess.
 - **Use `jj push`, not `jj git push`.** Typing `jj git push` directly **bypasses the local
   scan**, because jj does not run Git hooks. `git push --no-verify` also bypasses the hook.
   `:checkhealth fondue` confirms the alias and hook are configured, but it cannot stop you
