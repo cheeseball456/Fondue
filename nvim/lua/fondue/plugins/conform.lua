@@ -20,10 +20,19 @@ return {
       },
       default_format_opts = { lsp_format = "fallback" },
       formatters = {
-        -- shfmt indents with tabs unless told otherwise; two spaces is what the rest of this
-        -- configuration uses.
-        shfmt = { prepend_args = { "-i", "2" } },
-        -- stylua reads its settings (two spaces, double quotes) from nvim/stylua.toml.
+        -- shfmt indents with tabs unless told otherwise. Two spaces is what the rest of this
+        -- configuration uses, so that is the default, BUT only when the script's project has no
+        -- .editorconfig: giving shfmt an explicit -i would override a project's own indentation
+        -- settings, and other people's projects must keep their style.
+        shfmt = {
+          prepend_args = function(_, context)
+            local has_editorconfig = vim.fs.find(".editorconfig", { upward = true, path = context.dirname })[1] ~= nil
+            return has_editorconfig and {} or { "-i", "2" }
+          end,
+        },
+        -- stylua looks for stylua.toml or .stylua.toml from the file's folder upwards and the nearest
+        -- one wins: this configuration's nvim/stylua.toml (two spaces, double quotes) for the files in
+        -- this folder, and a project's own file for a project's Lua files.
       },
     },
   },
