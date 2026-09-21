@@ -137,7 +137,9 @@ local function check_language_tooling()
 
   local treesitter = require("fondue.treesitter")
   for _, lang in ipairs(treesitter.parsers) do
-    if treesitter.is_installed(lang) then
+    if treesitter.is_installed(lang) and not treesitter.is_current(lang) then
+      health.warn("Treesitter parser for " .. lang .. " is installed but out of date (its last rebuild failed), so its highlighting may not match the queries", fix)
+    elseif treesitter.is_installed(lang) then
       health.ok("Treesitter parser for " .. lang .. ": installed")
     else
       health.warn("Treesitter parser for " .. lang .. " is not installed, so " .. lang .. " files use Vim's own highlighting", fix)

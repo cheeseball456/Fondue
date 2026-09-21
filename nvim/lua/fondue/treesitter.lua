@@ -32,6 +32,35 @@ function M.is_installed(lang)
   return installed_set()[lang] == true
 end
 
+-- The revision of the parser source that nvim-treesitter wants for this language (from its parser list),
+-- or nil if it does not say.
+local function wanted_revision(lang)
+  local ok, parsers = pcall(require, "nvim-treesitter.parsers")
+  local entry = ok and parsers[lang]
+  return entry and entry.install_info and entry.install_info.revision or nil
+end
+
+-- The revision the installed parser was built from. nvim-treesitter writes this file only when a
+-- build succeeded, so it is a reliable record of "this parser is up to date".
+local function built_revision(lang)
+  local file = M.site_dir .. "/parser-info/" .. lang .. ".revision"
+  local ok, lines = pcall(vim.fn.readfile, file)
+  return ok and lines[1] or nil
+end
+
+-- Is the installed parser for this language built from the revision the plugin now wants? (A parser
+-- whose rebuild failed after a plugin update is still installed but is not current.)
+function M.is_current(lang)
+  local wanted = wanted_revision(lang)
+  return wanted == nil or built_revision(lang) == wanted
+end
+
+-- The parser file's identity (size and modification time), to tell whether a rebuild replaced it.
+local function parser_stamp(lang)
+  local stat = vim.uv.fs_stat(M.site_dir .. "/parser/" .. lang .. ".so")
+  return stat and (stat.size .. ":" .. stat.mtime.sec .. "." .. stat.mtime.nsec) or nil
+end
+
 -- The oldest tree-sitter command-line program that nvim-treesitter's main branch works with.
 M.min_cli_version = "0.26.1"
 
@@ -73,7 +102,7 @@ end
 -- Why did this parser fail? Use nvim-treesitter's own message when there is one, and blame
 -- the tree-sitter CLI or the C compiler only when one of them is really missing or too old.
 local function failure_reason(lang, errors)
-  local reason = errors[lang] or "the parser was not installed (see the messages above)"
+  local reason = errors[lang] or "the parser was not built (see the messages above)"
   local missing = {}
   if vim.fn.executable("tree-sitter") == 0 then
     missing[#missing + 1] = "the tree-sitter CLI is not installed"
@@ -92,7 +121,9 @@ local function failure_reason(lang, errors)
   return reason
 end
 
--- Install the parsers that are missing (or rebuild them all with options.update).
+-- Install the parsers that are missing or out of date (or rebuild them all with options.update).
+-- "Out of date" means installed but not built from the revision the plugin wants now, for example
+-- because a rebuild after a plugin update failed; running this again retries it.
 -- options.wait       true: wait until finished (used by the installer)
 -- options.timeout_ms how long to wait in total (default 10 minutes)
 -- options.on_done    function(result): with wait = false, called when the work has finished
@@ -120,11 +151,13 @@ function M.install(options)
 
   local have = installed_set()
   local todo = {}
+  local before = {} -- each parser file's identity before we start, to tell a real rebuild from a failed one
   for _, lang in ipairs(M.parsers) do
-    if have[lang] and not options.update then
+    if have[lang] and not options.update and M.is_current(lang) then
       result.present[#result.present + 1] = lang
     else
       todo[#todo + 1] = lang
+      before[lang] = parser_stamp(lang)
     end
   end
   if #todo == 0 then
@@ -135,7 +168,8 @@ function M.install(options)
   end
 
   local errors, stop_listening = listen_for_errors()
-  local started, task = pcall(ts.install, todo, { force = options.update })
+  -- force: a parser that is installed but out of date must be built again, not skipped
+  local started, task = pcall(ts.install, todo, { force = true })
   if not started then
     stop_listening()
     for _, lang in ipairs(todo) do
@@ -147,13 +181,16 @@ function M.install(options)
     return result
   end
 
-  -- The task's own answer is not reliable (asking for an unknown language "succeeds"),
-  -- so look at what is actually installed once it has finished.
+  -- The task's own answer is not reliable (asking for an unknown language "succeeds", and a failed
+  -- rebuild leaves the old parser file in place), so success is judged from the facts: nvim-treesitter
+  -- reported no error for this language, the parser file exists and is a new file, and it was built
+  -- from the revision the plugin wants.
   local function finish()
     stop_listening()
-    have = installed_set()
     for _, lang in ipairs(todo) do
-      if have[lang] then
+      local stamp = parser_stamp(lang)
+      local rebuilt = stamp ~= nil and stamp ~= before[lang] and not errors[lang] and M.is_current(lang)
+      if rebuilt then
         result.installed[#result.installed + 1] = lang
       else
         result.failed[#result.failed + 1] = { name = lang, reason = failure_reason(lang, errors) }
