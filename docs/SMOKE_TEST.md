@@ -76,13 +76,13 @@ Use a Python, JavaScript, JSON, bash or Swift file (any small project file will 
 
 These keys are the plugin's own insert-mode keys (they are not `Space` keys).
 
-- [ ] Type part of a name in a Python file (for example `os.pa`): a menu lists matches. The down and up
-      arrows (or `Ctrl-n` and `Ctrl-p`) move through it, `Enter` accepts the highlighted item.
+- [ ] Type part of a name in a Python file (for example `os.pa`): a menu lists matches, but nothing in it is
+      chosen yet and your text is not changed. The down and up arrows (or `Ctrl-n` and `Ctrl-p`) move through
+      it, and only `Enter` on an item you moved to accepts it. With nothing chosen, `Enter` is a normal
+      `Enter` (a new line) and the menu closes.
+- [ ] `Esc` while the menu is open closes the menu and stays in insert mode; a second `Esc` leaves insert mode
+      as usual. With no menu open `Esc` leaves insert mode at once. `Ctrl-e` also closes the menu.
 - [ ] Type a path prefix such as `./` inside a comment or string: file names are offered.
-- [ ] Enter accepts the highlighted suggestion, and the first suggestion is already highlighted when the menu
-      opens. So after typing a partial word, `Enter` completes it instead of starting a new line; to get a
-      new line while the menu is open, press `Esc` or `Ctrl-e` (hide the menu) first. Choosing an item with
-      the arrows also inserts its text as you move.
 - [ ] Other keys of the completion plugin, all in insert mode: `Ctrl-e` hides the menu, `Ctrl-Space` opens it (and
       shows or hides the documentation), `Ctrl-b` and `Ctrl-f` scroll the documentation, `Ctrl-k` shows the
       function signature. The same plugin also serves the command line (`:`): `Tab` and `Shift-Tab`, `Ctrl-n`
