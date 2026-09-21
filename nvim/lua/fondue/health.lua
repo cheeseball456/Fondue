@@ -38,24 +38,26 @@ local function fondue_repo()
   end
 end
 
--- Tools to look for. `needed_now` tools are errors when missing; the rest are
--- warnings that name the phase that starts to need them (jj has its own rule).
--- (Keep this list in step with scripts/install.sh and docs/PREREQUISITES.md.)
+-- Tools to look for, each with a plain "used for" description shown in the report.
+-- A missing `needed_now` tool is an error; any other tool is a warning, because no current
+-- feature needs it. When a feature starts to use a tool, raise its severity to an error
+-- by setting `needed_now = true`. (jj has its own rule, see check_tools.)
+-- Keep this list in step with scripts/install.sh and docs/PREREQUISITES.md.
 local tools = {
-  { name = "git", exes = { "git" }, needed_now = true, why = "version control and the pre-push hook" },
+  { name = "git", exes = { "git" }, needed_now = true, used_for = "version control, plugin installs and the pre-push hook" },
   {
     name = "gitleaks (secret scanner)",
     exes = { "gitleaks" },
     needed_now = true,
-    why = "without it every push is blocked, and pushing is not safe",
+    used_for = "the push-time secret scan; without it every push is blocked, and pushing is not safe",
   },
-  -- jj is needed now: the push-scan alias in a jj repository needs it. A missing jj is an
-  -- error when the Fondue clone is a jj repository and a warning otherwise (see check_tools).
+  -- jj is used by the push-scan alias in a jj repository. A missing jj is an error when the
+  -- Fondue clone is a jj repository and a warning otherwise (see check_tools).
   { name = "jj", exes = { "jj" }, jj_rule = true },
-  { name = "tree-sitter CLI", exes = { "tree-sitter" }, phase = "phase 1 (editing-core)" },
-  { name = "C compiler", exes = { "cc", "gcc", "clang" }, phase = "phase 1 (editing-core)" },
-  { name = "ripgrep", exes = { "rg" }, phase = "phase 2 (navigation)" },
-  { name = "fd", exes = { "fd" }, phase = "phase 2 (navigation)" },
+  { name = "tree-sitter CLI", exes = { "tree-sitter" }, used_for = "building Treesitter parsers" },
+  { name = "C compiler", exes = { "cc", "gcc", "clang" }, used_for = "building Treesitter parsers" },
+  { name = "ripgrep", exes = { "rg" }, used_for = "project text search" },
+  { name = "fd", exes = { "fd" }, used_for = "file search" },
 }
 
 local function check_tools()
@@ -93,13 +95,13 @@ local function check_tools()
           "Run scripts/install.sh"
         )
       end
-    elseif tool.needed_now then
-      health.error(tool.name .. " is not installed" .. (tool.why and (": " .. tool.why) or ""), "Run scripts/install.sh")
     else
-      health.warn(
-        tool.name .. " is not installed (needed from " .. tool.phase .. ")",
-        "Run scripts/install.sh; nothing in the current phase breaks without it"
-      )
+      local msg = tool.name .. " is not installed (used for " .. tool.used_for .. ")"
+      if tool.needed_now then
+        health.error(msg, "Run scripts/install.sh")
+      else
+        health.warn(msg, "Run scripts/install.sh")
+      end
     end
   end
 end
@@ -183,7 +185,7 @@ local function check_invariants()
     health.ok("No format-on-save and no autosave found")
   else
     for _, r in ipairs(risky) do
-      health.error("Found " .. r, "Fondue never saves or formats automatically (FR-020, FR-026)")
+      health.error("Found " .. r, "Fondue never saves or formats automatically")
     end
   end
 end
@@ -239,7 +241,7 @@ local function check_clipboard()
   local cb = vim.g.clipboard
   if type(cb) == "table" and cb.name == "OSC 52" then
     health.ok("OSC 52 clipboard provider is in use")
-    health.info("The terminal must allow OSC 52 writes (kitty does by default); test with the smoke test")
+    health.info("The terminal must allow OSC 52 writes (kitty does by default); check it with docs/SMOKE_TEST.md")
   else
     health.warn("This is an SSH session but the OSC 52 clipboard provider is not in use", "See nvim/lua/fondue/core/clipboard.lua")
   end

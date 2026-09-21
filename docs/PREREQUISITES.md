@@ -8,18 +8,18 @@ Supported systems: **macOS** (Homebrew) and **Arch Linux** (pacman). Windows is 
 
 ## Tools
 
-| Tool | What for | macOS (Homebrew) | Arch (pacman) | Needed from |
-|------|----------|------------------|---------------|-------------|
-| Neovim 0.12 or later | the editor | `neovim` | `neovim` | now |
-| git | version control, plugin installs, the pre-push hook | `git` | `git` | now |
-| gitleaks | push-time secret scan (blocks a push containing a secret) | `gitleaks` | `gitleaks` | now |
-| jj | push-time secret scan alias (`jj push`) and version control for jj repositories, including this one | `jj` | `jujutsu` | now (missing jj is an error in `:checkhealth fondue` inside a jj repository, a warning elsewhere) |
-| tree-sitter CLI | building Treesitter parsers | `tree-sitter-cli` | `tree-sitter-cli` | phase 1 (editing-core) |
-| C compiler | building Treesitter parsers | Xcode Command Line Tools: `xcode-select --install` | `gcc` | phase 1 (editing-core) |
-| ripgrep (`rg`) | project text search | `ripgrep` | `ripgrep` | phase 2 (navigation) |
-| fd | file search | `fd` | `fd` | phase 2 (navigation) |
-| Nerd Font | icons in the editor | cask `font-jetbrains-mono-nerd-font` | `ttf-jetbrains-mono-nerd` | now |
-| wl-clipboard (Arch only) | Neovim's system clipboard (`unnamedplus`) needs a helper program on Linux; the Arch desktop uses Wayland | nothing extra (`pbcopy`/`pbpaste` are built in) | `wl-clipboard` | now |
+| Tool | Used for | macOS (Homebrew) | Arch (pacman) |
+|------|----------|------------------|---------------|
+| Neovim 0.12 or later | the editor | `neovim` | `neovim` |
+| git | version control, plugin installs, the pre-push hook | `git` | `git` |
+| gitleaks | push-time secret scan (blocks a push containing a secret) | `gitleaks` | `gitleaks` |
+| jj | push-time secret scan alias (`jj push`) and version control for jj repositories, including this one (a missing jj is an error in `:checkhealth fondue` inside a jj repository and a warning elsewhere) | `jj` | `jujutsu` |
+| tree-sitter CLI | building Treesitter parsers | `tree-sitter-cli` | `tree-sitter-cli` |
+| C compiler | building Treesitter parsers | Xcode Command Line Tools: `xcode-select --install` | `gcc` |
+| ripgrep (`rg`) | project text search | `ripgrep` | `ripgrep` |
+| fd | file search | `fd` | `fd` |
+| Nerd Font | icons in the editor | cask `font-jetbrains-mono-nerd-font` | `ttf-jetbrains-mono-nerd` |
+| wl-clipboard (Arch only) | Neovim's system clipboard (`unnamedplus`) needs a helper program on Linux; the Arch desktop uses Wayland | nothing extra (`pbcopy`/`pbpaste` are built in) | `wl-clipboard` |
 
 Notes:
 
@@ -38,7 +38,7 @@ Notes:
 The installer installs a Nerd Font, but **selecting it in your terminal is manual**: no script
 edits terminal settings, and `:checkhealth fondue` cannot see which font the terminal uses.
 Set the terminal's font to "JetBrainsMono Nerd Font" (or any Nerd Font you prefer), then check
-that the icons render (see the smoke test).
+that the icons render (see [SMOKE_TEST.md](SMOKE_TEST.md)).
 
 ## Installing
 
@@ -66,15 +66,15 @@ the installer refuses, changes nothing, and explains both choices.
   (Fondue adds its own plugins and sets any plugin of the same name to its locked commit; nothing there is deleted). To go back, remove the
   Fondue link and move the `.bak-<date>` folder back to `~/.config/nvim`. For exactly this reason
   `--appname fondue` is the cleaner way to try Fondue: it has its own data, state and cache folders.
-- A script that calls the installer (for example a future dotfiles setup) must pass `--appname NAME`
+- A script that calls the installer (for example a dotfiles setup script) must pass `--appname NAME`
   or `--overwrite`; without one the installer refuses and exits with a non-zero status.
 - Running the same command again changes nothing. The installer honours `XDG_CONFIG_HOME` when
   choosing where to link, and never edits your shell or terminal settings.
 - With a custom name it ends by printing the shell alias line to add (it does not write it).
 
-## Before the first push: secret scanning (public repository)
+## If you push to this repository: secret scanning
 
-The Fondue repository is public, so nothing is pushed until secret scanning is in place.
+The Fondue repository is public. If you push to it, set up secret scanning first.
 
 - **Local scan.** `scripts/setup-repo` (run automatically by the installer inside a clone)
   turns on the push-time scan: a Git `pre-push` hook for plain git, and a `jj push` alias

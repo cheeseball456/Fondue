@@ -6,7 +6,7 @@
 -- (`mode` may be left out for normal mode.)
 return {
   -- Groups are just labels for a prefix. They bind nothing, so an empty group is fine;
-  -- keys are added to them as their features land in later phases.
+  -- keys are added to them as features are added.
   groups = {
     { prefix = "<leader>s", desc = "Search" },
     { prefix = "<leader>v", desc = "Version control" },

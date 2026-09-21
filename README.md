@@ -24,4 +24,4 @@ See [docs/PREREQUISITES.md](docs/PREREQUISITES.md) for every external tool, and
 
 - `nvim/` - the whole Neovim configuration (linked to `~/.config/nvim`)
 - `scripts/` - installer and the push-time secret scan
-- `docs/` - prerequisites and the smoke test
+- `docs/` - prerequisites and a checklist for checking your installation
