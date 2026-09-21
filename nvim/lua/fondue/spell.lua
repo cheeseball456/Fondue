@@ -26,6 +26,22 @@ function M.setup()
   vim.g.loaded_spellfile_plugin = 1
 end
 
+-- Plain-text lines are often longer than the window, so a line wraps onto several screen rows.
+-- Stock Up, Down, j and k move by whole lines and would jump over the wrapped rows, so in plain-text
+-- buffers only they move by screen row instead (gj and gk). These are buffer-local, non-leader
+-- movement keys (kept out of keymaps.lua, which holds the `Space` keys) and nothing changes in
+-- code or any other buffer. A count keeps its stock meaning: `3j` still moves three real lines,
+-- because only the key pressed without a count is replaced.
+local function screen_line_movement(buf)
+  local moves = { { "j", "gj" }, { "k", "gk" }, { "<Down>", "gj" }, { "<Up>", "gk" } }
+  for _, move in ipairs(moves) do
+    local key, screen_key = move[1], move[2]
+    vim.keymap.set({ "n", "x" }, key, function()
+      return vim.v.count == 0 and screen_key or key
+    end, { buffer = buf, expr = true, silent = true, desc = "Move by screen line in plain text" })
+  end
+end
+
 -- Called for each buffer when its file type is known. `has_syntax_tree` is true when
 -- Treesitter highlighting started for the buffer.
 function M.apply(buf, has_syntax_tree)
@@ -42,6 +58,7 @@ function M.apply(buf, has_syntax_tree)
     local_opts.wrap = true
     local_opts.linebreak = true
     local_opts.breakindent = true
+    screen_line_movement(buf)
   elseif has_syntax_tree then
     -- With a syntax tree, spell checking only looks at the spellable parts.
     local_opts.spell = true

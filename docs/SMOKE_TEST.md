@@ -118,7 +118,8 @@ These keys are the plugin's own insert-mode keys (they are not `Space` keys).
 
 - [ ] Open a plain text file (`.txt`) containing `recieve`, `colour` and `color`: `recieve` is underlined as an error,
       `colour` is not, and `color` is underlined as valid only in another region (US spelling).
-      `z=` suggests corrections, `]s` jumps to the next one. Long lines wrap at word boundaries.
+      `z=` suggests corrections, `]s` jumps to the next one. Long lines wrap at word boundaries, and `Down` / `j`
+      move down through the wrapped rows of a long line (see Movement).
 - [ ] In a Python file, a misspelled word in a comment or docstring is underlined; a misspelled variable name is not, and
       neither is a word inside an ordinary string. The same applies to the other languages.
 - [ ] Turning spell checking on never asks you a question (the dictionary is installed by the installer).
@@ -131,7 +132,12 @@ These keys are the plugin's own insert-mode keys (they are not `Space` keys).
 
 ## Movement
 
-- [ ] Arrow keys and `h j k l` move the cursor as in stock Neovim.
+- [ ] Arrow keys and `h j k l` move the cursor as in stock Neovim, in every kind of file except plain text
+      (see the next item).
+- [ ] Plain text (a `.txt` file) is the one exception: there `Up`, `Down`, `j` and `k` move by screen row, so the
+      cursor follows a long wrapped line instead of skipping over its wrapped part. With a count they keep
+      their usual meaning (`3j` moves three real lines), `dj` still deletes two whole lines, and in insert mode
+      the arrows are stock. In a Python (or any other code) file all four keys move by real lines.
 
 ## Clipboard
 
