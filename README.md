@@ -4,6 +4,11 @@ Fondue is a single, version-controlled Neovim configuration, kept identical acro
 macOS and Arch Linux machines. It uses lazy.nvim for plugins (pinned by a committed
 lockfile), one central keymap table, and the `carbonfox` colourscheme by default.
 
+It is set up for everyday editing of Python, JavaScript, JSON, bash and Lua (Swift with lightweight
+support): syntax highlighting and folds from real syntax trees, language servers, completion and
+snippets, formatting only when you ask (`Space c f`), shellcheck for bash, bracket pairing, surround
+editing, indent guides, and UK English spell checking. Nothing is saved or formatted automatically.
+
 **Supported systems:** macOS (Homebrew) and Arch Linux (pacman). Windows is not supported.
 **Requires:** Neovim 0.12 or later.
 
@@ -18,7 +23,7 @@ scripts/install.sh --overwrite                  # install as your default nvim c
 ```
 
 See [docs/PREREQUISITES.md](docs/PREREQUISITES.md) for every external tool, and
-[docs/SMOKE_TEST.md](docs/SMOKE_TEST.md) for the checklist to run after installing or updating.
+[docs/SMOKE_TEST.md](docs/SMOKE_TEST.md) for the checklist to run after installing or updating. The installer also fetches the language tools (parsers, servers, formatters, dictionary) once; nothing downloads while you edit.
 
 ## Layout
 
