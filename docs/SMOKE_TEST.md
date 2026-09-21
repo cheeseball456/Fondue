@@ -97,6 +97,11 @@ These keys are the plugin's own insert-mode keys (they are not `Space` keys).
       wrote it. Nothing is ever formatted on save.
 - [ ] `Space c f` formats the buffer (Python with `ruff format`, JavaScript and JSON with `prettier`, bash with `shfmt`,
       Lua with `stylua`). In visual mode it formats only the selected lines.
+- [ ] If nothing needed changing, `Space c f` says "already formatted" (in the buffer and in a selection), so
+      silence is never mistaken for a failure.
+- [ ] Styles: shell scripts are formatted by `shfmt` with two-space indentation (no tabs); Lua is formatted by
+      `stylua` using `nvim/stylua.toml` (two spaces, double quotes), so Lua files in this configuration keep
+      their style. Python (`ruff format`) and JavaScript and JSON (`prettier`) use their defaults.
 - [ ] In a file with no formatter and no language server, `Space c f` shows a short message and changes nothing.
 
 ## Editing helpers

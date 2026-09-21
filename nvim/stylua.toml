@@ -1,0 +1,8 @@
+# Settings for `stylua`, the Lua formatter that Space c f uses. They follow the style of the
+# existing configuration: two spaces, double quotes, and long lines left alone (the code
+# already wraps by hand where that reads better).
+indent_type = "Spaces"
+indent_width = 2
+column_width = 200
+quote_style = "AutoPreferDouble"
+call_parentheses = "Always"

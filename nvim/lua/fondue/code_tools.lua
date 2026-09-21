@@ -20,8 +20,19 @@ function M.format()
     vim.cmd("normal! \27") -- leave visual mode
   end
 
+  -- conform calls this when it has finished (at once, because we format synchronously). If the
+  -- text did not change, say so: silence could be mistaken for "nothing happened".
+  local function finished(err, did_edit)
+    if err then
+      return -- conform has already reported a failing formatter
+    end
+    if not did_edit then
+      vim.notify("Fondue: already formatted", vim.log.levels.INFO)
+    end
+  end
+
   -- format() returns false when there was nothing to run.
-  if not require("conform").format(options) then
+  if not require("conform").format(options, finished) then
     vim.notify("Fondue: cannot format this buffer (no formatter or language server available for it)", vim.log.levels.WARN)
   end
 end

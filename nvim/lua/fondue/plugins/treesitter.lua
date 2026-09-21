@@ -33,11 +33,7 @@ return {
             end
           end
           local more = #result.failed > 3 and (" and " .. (#result.failed - 3) .. " more") or ""
-          vim.notify(
-            "Fondue: could not rebuild the Treesitter parsers for " .. table.concat(names, ", ") .. more
-              .. " (see :messages); run scripts/install.sh to retry",
-            vim.log.levels.WARN
-          )
+          vim.notify("Fondue: could not rebuild the Treesitter parsers for " .. table.concat(names, ", ") .. more .. " (see :messages); run scripts/install.sh to retry", vim.log.levels.WARN)
         end,
       })
     end,

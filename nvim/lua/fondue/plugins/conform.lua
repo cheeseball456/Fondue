@@ -19,6 +19,12 @@ return {
         lua = { "stylua" },
       },
       default_format_opts = { lsp_format = "fallback" },
+      formatters = {
+        -- shfmt indents with tabs unless told otherwise; two spaces is what the rest of this
+        -- configuration uses.
+        shfmt = { prepend_args = { "-i", "2" } },
+        -- stylua reads its settings (two spaces, double quotes) from nvim/stylua.toml.
+      },
     },
   },
 }

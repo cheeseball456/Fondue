@@ -223,7 +223,12 @@ function M.describe()
       lines,
       string.format(
         "depth %d: bracket %s  guide %s (%.2f:1)  current block %s (%.2f:1)",
-        depth, hex(c.base), hex(c.guide), M.contrast(c.guide, M.chosen.background), hex(c.scope), M.contrast(c.scope, M.chosen.background)
+        depth,
+        hex(c.base),
+        hex(c.guide),
+        M.contrast(c.guide, M.chosen.background),
+        hex(c.scope),
+        M.contrast(c.scope, M.chosen.background)
       )
     )
   end
@@ -233,7 +238,13 @@ function M.describe()
       lines,
       string.format(
         "word background %s (%.2f:1 against the background, tinted with %s); distance to cursor line %s: %.0f, to selection %s: %.0f",
-        hex(w.colour), M.contrast(w.colour, M.chosen.background), w.tint, hex(w.cursor_line), w.cursor_line and M.distance(w.colour, w.cursor_line) or -1, hex(w.selection), w.selection and M.distance(w.colour, w.selection) or -1
+        hex(w.colour),
+        M.contrast(w.colour, M.chosen.background),
+        w.tint,
+        hex(w.cursor_line),
+        w.cursor_line and M.distance(w.colour, w.cursor_line) or -1,
+        hex(w.selection),
+        w.selection and M.distance(w.colour, w.selection) or -1
       )
     )
   end
