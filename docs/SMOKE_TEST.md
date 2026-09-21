@@ -73,6 +73,15 @@ These keys are the plugin's own insert-mode keys (they are not `Space` keys).
 - [ ] Type part of a name in a Python file (for example `os.pa`): a menu lists matches. The down and up
       arrows (or `Ctrl-n` and `Ctrl-p`) move through it, `Enter` accepts the highlighted item.
 - [ ] Type a path prefix such as `./` inside a comment or string: file names are offered.
+- [ ] Enter accepts the highlighted suggestion, and the first suggestion is already highlighted when the menu
+      opens. So after typing a partial word, `Enter` completes it instead of starting a new line; to get a
+      new line while the menu is open, press `Esc` or `Ctrl-e` (hide the menu) first. Choosing an item with
+      the arrows also inserts its text as you move.
+- [ ] Other keys of the completion plugin, all in insert mode: `Ctrl-e` hides the menu, `Ctrl-Space` opens it (and
+      shows or hides the documentation), `Ctrl-b` and `Ctrl-f` scroll the documentation, `Ctrl-k` shows the
+      function signature. The same plugin also serves the command line (`:`): `Tab` and `Shift-Tab`, `Ctrl-n`
+      and `Ctrl-p`, and the left and right arrows move through its menu when one is showing, and
+      `Ctrl-Space` opens it.
 - [ ] Type `def` in a Python file and choose the function snippet: the template appears with the cursor on the
       first field. `Tab` jumps to the next field and `Shift-Tab` back.
 
@@ -86,9 +95,14 @@ These keys are the plugin's own insert-mode keys (they are not `Space` keys).
 
 ## Editing helpers
 
-- [ ] Typing `(` inserts `()` with the cursor between them; the same for quotes and other brackets.
+- [ ] Typing `(` inserts `()` with the cursor between them; the same for quotes and other brackets. The pairing
+      plugin also takes over insert-mode `Backspace` (deleting an opening bracket deletes its partner when
+      they are empty) and `Enter` between a pair (`{` `Enter` `}` opens an indented block).
 - [ ] Surround: with the cursor inside `"text"`, `cs"'` changes it to `'text'`; inside `(a + b)`, `ds(` removes the
       parentheses; `ysiw)` surrounds a word. (`ys`, `cs` and `ds` are the plugin's own keys, not `Space` keys.)
+      The plugin has more keys: `yss` surrounds the whole line, `yS` and `ySS` put the pair on their own lines,
+      `cS` changes a pair the same way, in insert mode `Ctrl-g s` and `Ctrl-g S` add a pair, and in visual mode
+      **`S` surrounds the selection (this replaces Vim's own visual `S`)**.
 - [ ] `gcc` comments the current line with the right syntax: `#` in Python and bash, `//` in JavaScript. `gc` with a
       motion or in visual mode comments a range.
 - [ ] A very large file (a few megabytes, or a minified file with very long lines) opens promptly, and a
@@ -128,10 +142,16 @@ These keys are the plugin's own insert-mode keys (they are not `Space` keys).
 
 ## After you update plugins
 
-- Run `:Lazy update`, then run all the checks above, starting with `:checkhealth` and
+- Run `:Lazy update`, then run `scripts/install.sh` again (it only fetches what is missing: the completion
+  plugin's matcher for a new release, and any parser that failed to rebuild), then run all the checks above, starting with `:checkhealth` and
   `:checkhealth fondue`. The update changes `nvim/lazy-lock.json`, which records the exact
-  commit of every plugin. Updating the Treesitter plugin rebuilds the parsers automatically; if a language
-  loses its colours afterwards, run `:TSUpdate`, then `scripts/install.sh` again.
+  commit of every plugin. Updating the Treesitter plugin rebuilds the parsers in the background, so the
+  editor stays usable; if one cannot be rebuilt you get a one-line warning, and running `scripts/install.sh`
+  again retries it. If a language loses its colours afterwards, `:checkhealth fondue` says which parser is
+  the problem.
+- The completion plugin fetches its matcher itself when it first loads after an update, if the installer has
+  not already done so. With downloads blocked, completion keeps working with a slower matcher and
+  `:checkhealth fondue` shows a warning.
 - If a plugin misbehaves, restore the previous lockfile (`git checkout nvim/lazy-lock.json`, or
   `jj restore nvim/lazy-lock.json` in a jj repository) and run `:Lazy restore`.
 - To bring another machine to the same plugin versions, pull the repository there and run
@@ -141,6 +161,8 @@ These keys are the plugin's own insert-mode keys (they are not `Space` keys).
 ## The installer's language step
 
 - [ ] `scripts/install.sh --dry-run --appname NAME` prints a "Language tooling" step and installs nothing.
+- [ ] A real run prints a line saying the step can take a minute or two, then shows each item's result as
+      it finishes.
 - [ ] A real run on a fresh setup lists what it installed (parsers, tools, completion matcher, dictionary) and
       ends normally. Running it a second time reports "nothing to do" for each and changes nothing.
 - [ ] If a download fails (for example with the network off), the installer names the item that failed, carries on
