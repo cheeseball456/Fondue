@@ -54,6 +54,7 @@ end
 -- Install every tool that Mason does not have yet.
 -- options.wait       true: wait until all installs finish (used by the installer)
 -- options.timeout_ms how long to wait in total (default 10 minutes)
+-- options.progress   function(name, ok, reason): called as each tool finishes
 -- Returns { installed = {names}, present = {names}, failed = { {name=, reason=}, ... } }.
 -- A failing tool is reported by name and never stops the others.
 function M.install(options)
@@ -69,15 +70,36 @@ function M.install(options)
   end
 
   -- Fetch the list of packages (a quick download the first time, then cached for a day).
-  -- pcall: an offline machine still works if the cache exists.
-  pcall(registry.refresh)
+  -- An offline machine still works if the cache exists; without a cache there is no list at
+  -- all, and that is what every tool's failure reason must say (not "no such package").
+  -- refresh() answers (true, ...) or (false, error message); pcall adds its own first answer.
+  local called, refreshed, detail = pcall(registry.refresh)
+  local refresh_error = (not called and refreshed) or (called and refreshed == false and detail) or nil
+  local listed, names = pcall(registry.get_all_package_names)
+  local have_list = listed and type(names) == "table" and #names > 0
+  local list_problem = "Mason's package list is not available (it could not be downloaded; is the network up?)"
+  if type(refresh_error) == "string" then
+    list_problem = list_problem .. ": " .. refresh_error:gsub("%s+", " ")
+  end
+
+  local function report_progress(name, ok, reason)
+    if options.progress then
+      pcall(options.progress, name, ok, reason)
+    end
+  end
 
   local pending = 0
   for _, tool in ipairs(M.tools) do
     local found, package = pcall(registry.get_package, tool.package)
+    local present = false
+    if found then
+      local checked, installed = pcall(package.is_installed, package)
+      present = checked and installed == true
+    end
     if not found then
-      result.failed[#result.failed + 1] = { name = tool.name, reason = "no Mason package called '" .. tool.package .. "'" }
-    elseif package:is_installed() then
+      local reason = have_list and ("no Mason package called '" .. tool.package .. "'") or list_problem
+      result.failed[#result.failed + 1] = { name = tool.name, reason = reason }
+    elseif present then
       result.present[#result.present + 1] = tool.name
     else
       pending = pending + 1
@@ -89,11 +111,13 @@ function M.install(options)
           else
             result.failed[#result.failed + 1] = { name = tool.name, reason = tostring(reason) }
           end
+          report_progress(tool.name, success, success and nil or tostring(reason))
         end)
       end)
       if not started then
         pending = pending - 1
         result.failed[#result.failed + 1] = { name = tool.name, reason = tostring(err) }
+        report_progress(tool.name, false, tostring(err))
       end
     end
   end

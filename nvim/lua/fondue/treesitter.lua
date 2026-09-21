@@ -17,8 +17,12 @@ local function installed_set()
   if not ok then
     return set, "nvim-treesitter is not installed"
   end
-  for _, lang in ipairs(ts.get_installed("parsers")) do
-    set[lang] = true
+  -- pcall: the plugin is a rewrite that may still change; a broken call must not raise.
+  local listed, parsers = pcall(ts.get_installed, "parsers")
+  if listed and type(parsers) == "table" then
+    for _, lang in ipairs(parsers) do
+      set[lang] = true
+    end
   end
   return set
 end
@@ -28,10 +32,72 @@ function M.is_installed(lang)
   return installed_set()[lang] == true
 end
 
+-- The oldest tree-sitter command-line program that nvim-treesitter's main branch works with.
+M.min_cli_version = "0.26.1"
+
+-- Version of the installed tree-sitter CLI as a vim.version object, or nil if it is missing or
+-- its output cannot be read.
+function M.cli_version()
+  if vim.fn.executable("tree-sitter") == 0 then
+    return nil
+  end
+  local ok, proc = pcall(vim.system, { "tree-sitter", "--version" }, { text = true })
+  if not ok then
+    return nil
+  end
+  local out = proc:wait().stdout or ""
+  return vim.version.parse(out:match("(%d+%.%d+%.%d+)") or "")
+end
+
+-- While parsers are being installed, remember nvim-treesitter's own error lines
+-- ("[nvim-treesitter/install/<language>] error: ...") so a failure can be explained
+-- accurately. Returns the table of language -> message and a function that stops listening.
+local function listen_for_errors()
+  local errors = {}
+  local original = vim.api.nvim_echo
+  vim.api.nvim_echo = function(chunks, history, opts)
+    pcall(function()
+      local text = chunks and chunks[1] and chunks[1][1] or ""
+      local lang, message = text:match("^%[nvim%-treesitter/install/([%w_%-]+)%] error: (.*)$")
+      if lang then
+        errors[lang] = vim.split(message, "\n")[1]
+      end
+    end)
+    return original(chunks, history, opts)
+  end
+  return errors, function()
+    vim.api.nvim_echo = original
+  end
+end
+
+-- Why did this parser fail? Use nvim-treesitter's own message when there is one, and blame
+-- the tree-sitter CLI or the C compiler only when one of them is really missing or too old.
+local function failure_reason(lang, errors)
+  local reason = errors[lang] or "the parser was not installed (see the messages above)"
+  local missing = {}
+  if vim.fn.executable("tree-sitter") == 0 then
+    missing[#missing + 1] = "the tree-sitter CLI is not installed"
+  else
+    local version = M.cli_version()
+    if version and vim.version.lt(version, vim.version.parse(M.min_cli_version)) then
+      missing[#missing + 1] = "the tree-sitter CLI is older than " .. M.min_cli_version
+    end
+  end
+  if vim.fn.executable("cc") == 0 and vim.fn.executable("gcc") == 0 and vim.fn.executable("clang") == 0 then
+    missing[#missing + 1] = "no C compiler was found"
+  end
+  if #missing > 0 then
+    reason = reason .. " (" .. table.concat(missing, "; ") .. ")"
+  end
+  return reason
+end
+
 -- Install the parsers that are missing (or rebuild them all with options.update).
 -- options.wait       true: wait until finished (used by the installer)
 -- options.timeout_ms how long to wait in total (default 10 minutes)
+-- options.on_done    function(result): with wait = false, called when the work has finished
 -- Returns { installed = {langs}, present = {langs}, failed = { {name=, reason=} } }.
+-- Without wait, the returned table only holds what was already installed; use on_done.
 function M.install(options)
   options = options or {}
   local result = { installed = {}, present = {}, failed = {} }
@@ -45,9 +111,12 @@ function M.install(options)
     for _, lang in ipairs(M.parsers) do
       result.failed[#result.failed + 1] = { name = lang, reason = "nvim-treesitter is not installed" }
     end
+    if options.on_done then
+      options.on_done(result)
+    end
     return result
   end
-  ts.setup({ install_dir = M.site_dir })
+  pcall(ts.setup, { install_dir = M.site_dir })
 
   local have = installed_set()
   local todo = {}
@@ -59,24 +128,51 @@ function M.install(options)
     end
   end
   if #todo == 0 then
+    if options.on_done then
+      options.on_done(result)
+    end
     return result
   end
 
-  local task = ts.install(todo, { force = options.update })
-  if not options.wait then
+  local errors, stop_listening = listen_for_errors()
+  local started, task = pcall(ts.install, todo, { force = options.update })
+  if not started then
+    stop_listening()
+    for _, lang in ipairs(todo) do
+      result.failed[#result.failed + 1] = { name = lang, reason = "nvim-treesitter raised an error: " .. tostring(task) }
+    end
+    if options.on_done then
+      options.on_done(result)
+    end
     return result
   end
-  task:wait(options.timeout_ms or 600000)
 
   -- The task's own answer is not reliable (asking for an unknown language "succeeds"),
-  -- so look at what is actually installed now.
-  have = installed_set()
-  for _, lang in ipairs(todo) do
-    if have[lang] then
-      result.installed[#result.installed + 1] = lang
-    else
-      result.failed[#result.failed + 1] = { name = lang, reason = "the parser was not built (needs the tree-sitter CLI and a C compiler)" }
+  -- so look at what is actually installed once it has finished.
+  local function finish()
+    stop_listening()
+    have = installed_set()
+    for _, lang in ipairs(todo) do
+      if have[lang] then
+        result.installed[#result.installed + 1] = lang
+      else
+        result.failed[#result.failed + 1] = { name = lang, reason = failure_reason(lang, errors) }
+      end
     end
+    if options.on_done then
+      options.on_done(result)
+    end
+  end
+
+  if options.wait then
+    pcall(function()
+      task:wait(options.timeout_ms or 600000)
+    end)
+    finish()
+  else
+    task:await(function()
+      vim.schedule(finish)
+    end)
   end
   return result
 end
