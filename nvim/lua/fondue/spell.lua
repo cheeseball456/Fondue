@@ -80,7 +80,9 @@ function M.ensure_dictionary()
   if not ok then
     return { fetched = false, present = false, error = "this Neovim has no built-in dictionary downloader" }
   end
-  spellfile.config({ confirm = false }) -- the default asks "Download? [y/N]"
+  -- The default asks "Download? [y/N]" and gives each of the two files 15 seconds; a slow or busy
+  -- connection needs longer, and a suggestions file that timed out would silently be missing.
+  spellfile.config({ confirm = false, timeout_ms = 90000 })
   local got, err = pcall(spellfile.get, "en")
   local present = M.dictionary_present()
   return { fetched = present, present = present, error = (not present) and (got and "download failed (no network?)" or tostring(err)) or nil }
