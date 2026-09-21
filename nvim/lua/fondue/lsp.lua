@@ -31,6 +31,9 @@ local function server_settings()
         },
       },
     },
+    -- bash-language-server runs shellcheck by itself; nvim-lint already does, so an empty
+    -- path switches the server's copy off and each finding is shown once.
+    bashls = { settings = { bashIde = { shellcheckPath = "" } } },
     lua_ls = {
       root_markers = lua_markers,
       settings = { Lua = { runtime = { version = "LuaJIT" }, diagnostics = { globals = { "vim" } } } },
