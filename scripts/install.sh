@@ -422,17 +422,32 @@ if [ "$DRY_RUN" -eq 1 ]; then
   say "  would run: $LANG_CMD"
 else
   say "  running: $LANG_CMD"
-  lang_out=$(NVIM_APPNAME=$APPNAME nvim --headless "+lua require('fondue.setup').run()" +qa 2>&1)
-  lang_rc=$?
-  [ -z "$lang_out" ] || say "$lang_out"
+  say "  This downloads parsers, servers and a dictionary, so it can take a minute or two on a new machine."
+  # Show the output as it arrives, and keep a copy to inspect afterwards. A pipe would hide
+  # Neovim's exit status in a plain sh, so the status is written to a file inside the group.
+  lang_dir=$(mktemp -d "${TMPDIR:-/tmp}/fondue-install.XXXXXX") || die "could not create a temporary folder."
+  trap 'rm -rf "$lang_dir"' EXIT
+  {
+    NVIM_APPNAME=$APPNAME nvim --headless "+lua require('fondue.setup').run()" +qa 2>&1
+    echo $? > "$lang_dir/status"
+  } | tee "$lang_dir/output"
+  lang_rc=$(cat "$lang_dir/status" 2>/dev/null)
+  [ -n "$lang_rc" ] || lang_rc=1
   # Lines starting with "  installed" are things this run added.
-  if printf '%s\n' "$lang_out" | grep -q '^  installed '; then
+  if grep -q '^  installed ' "$lang_dir/output"; then
     CHANGES=$((CHANGES + 1))
   fi
   if [ "$lang_rc" -ne 0 ]; then
     say "  Language tooling: some items failed (named above). Fix the cause, then run this installer again."
     FAILED=1
+  elif ! grep -q '^  finished ' "$lang_dir/output"; then
+    # Neovim exited normally but the setup never said it finished: an error stopped it early
+    # (Neovim's own exit status is 0 even when a command raises an error).
+    say "  Language tooling did not finish (an error stopped it; see the lines above). Fix the cause, then run this installer again."
+    FAILED=1
   fi
+  rm -rf "$lang_dir"
+  trap - EXIT
 fi
 
 # --- Step 5: repository safety ---------------------------------------------------------
