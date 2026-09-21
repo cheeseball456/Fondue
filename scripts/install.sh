@@ -402,12 +402,37 @@ fi
 
 # --- Step 3: restore plugins ---------------------------------------------------------
 step "3/5 Restore plugins from the lockfile"
+# The restore prints hundreds of lines (every clone and checkout), so its output goes to a log file
+# in Neovim's state folder; only a one-line summary is shown, and the end of the log if it fails.
+RESTORE_LOG_DIR=${XDG_STATE_HOME:-$HOME/.local/state}/$APPNAME
+RESTORE_LOG=$RESTORE_LOG_DIR/install-restore.log
+
+restore_plugins() {
+  # Headless and non-interactive: lazy.nvim installs itself, then every plugin at its locked commit.
+  # git would print a long "detached HEAD" explanation for each plugin (they are deliberately checked
+  # out at an exact commit), so that one piece of advice is turned off, for this command only. If the
+  # caller already uses GIT_CONFIG_COUNT we leave their settings alone.
+  if [ -z "${GIT_CONFIG_COUNT:-}" ]; then
+    GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=advice.detachedHead GIT_CONFIG_VALUE_0=false \
+      NVIM_APPNAME=$APPNAME nvim --headless "+Lazy! restore" +qa
+  else
+    NVIM_APPNAME=$APPNAME nvim --headless "+Lazy! restore" +qa
+  fi
+}
+
 if [ "$DRY_RUN" -eq 1 ]; then
   say "  would run: NVIM_APPNAME=$APPNAME nvim --headless \"+Lazy! restore\" +qa"
 else
   say "  running: NVIM_APPNAME=$APPNAME nvim --headless \"+Lazy! restore\" +qa"
-  # Headless and non-interactive: lazy.nvim installs itself, then every plugin at its locked commit.
-  NVIM_APPNAME=$APPNAME nvim --headless "+Lazy! restore" +qa || die "plugin restore failed."
+  mkdir -p "$RESTORE_LOG_DIR" || die "could not create $RESTORE_LOG_DIR."
+  if restore_plugins >"$RESTORE_LOG" 2>&1; then
+    say "  Plugins restored from the lockfile. Details: $RESTORE_LOG"
+  else
+    say "  Plugin restore failed. The end of its log ($RESTORE_LOG):"
+    esc=$(printf '\033')
+    tail -n 30 "$RESTORE_LOG" | sed "s/${esc}\[[0-9;]*m//g" | sed 's/^/    /'
+    die "plugin restore failed (see $RESTORE_LOG)."
+  fi
   say ""
 fi
 

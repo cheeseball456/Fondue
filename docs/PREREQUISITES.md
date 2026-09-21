@@ -93,6 +93,7 @@ the installer refuses, changes nothing, and explains both choices.
   `--appname fondue` is the cleaner way to try Fondue: it has its own data, state and cache folders.
 - A script that calls the installer (for example a dotfiles setup script) must pass `--appname NAME`
   or `--overwrite`; without one the installer refuses and exits with a non-zero status.
+- The plugin restore step is chatty (every clone and checkout), so its output is saved to `install-restore.log` in Neovim's state folder for the chosen name (for example `~/.local/state/fondue/install-restore.log`); the installer shows a one-line summary with that path, and the end of the log if the restore fails.
 - Running the same command again changes nothing. The installer honours `XDG_CONFIG_HOME` when
   choosing where to link, and never edits your shell or terminal settings.
 - With a custom name it ends by printing the shell alias line to add (it does not write it).
