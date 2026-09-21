@@ -14,14 +14,23 @@ Supported systems: **macOS** (Homebrew) and **Arch Linux** (pacman). Windows is 
 | git | version control, plugin installs, the pre-push hook | `git` | `git` |
 | gitleaks | push-time secret scan (blocks a push containing a secret) | `gitleaks` | `gitleaks` |
 | jj | push-time secret scan alias (`jj push`) and version control for jj repositories, including this one (a missing jj is an error in `:checkhealth fondue` inside a jj repository and a warning elsewhere) | `jj` | `jujutsu` |
-| tree-sitter CLI | building Treesitter parsers | `tree-sitter-cli` | `tree-sitter-cli` |
-| C compiler | building Treesitter parsers | Xcode Command Line Tools: `xcode-select --install` | `gcc` |
+| tree-sitter CLI | building Treesitter parsers (needed for syntax highlighting; `:checkhealth fondue` reports it missing as an error) | `tree-sitter-cli` | `tree-sitter-cli` |
+| C compiler | building Treesitter parsers (needed for syntax highlighting; reported as an error when missing) | Xcode Command Line Tools: `xcode-select --install` | `gcc` |
+| Node.js | running the JavaScript-based language servers and formatters that Mason installs | `node` | `nodejs` |
+| npm | installing those JavaScript-based tools | `node` (includes npm) | `npm` |
+| Python 3 (with `venv`) | installing the Python-based language servers (`basedpyright`, `ruff`) into their own environments | `python3` | `python` |
+| curl | downloading parsers, tools, snippets and the spell dictionary | `curl` | `curl` |
+| tar | unpacking downloads | `gnu-tar` | `tar` |
+| gzip | unpacking downloads | `gzip` | `gzip` |
+| unzip | unpacking downloads | `unzip` | `unzip` |
 | ripgrep (`rg`) | project text search | `ripgrep` | `ripgrep` |
 | fd | file search | `fd` | `fd` |
 | Nerd Font | icons in the editor | cask `font-jetbrains-mono-nerd-font` | `ttf-jetbrains-mono-nerd` |
 | wl-clipboard (Arch only) | Neovim's system clipboard (`unnamedplus`) needs a helper program on Linux; the Arch desktop uses Wayland | nothing extra (`pbcopy`/`pbpaste` are built in) | `wl-clipboard` |
 
 Notes:
+
+- macOS already has `curl`, `tar`, `gzip`, `unzip` and a Python 3, and an Arch base system has `curl`, `tar`, `gzip` and `unzip`, so on most machines the installer only adds Node.js (and Python on Arch).
 
 - On macOS no clipboard tool needs installing. On Arch, without `wl-clipboard` Neovim reports "No provider" on every yank or paste; `:checkhealth fondue` names this fix. Over SSH no local helper is needed (copying uses OSC 52).
 - On macOS the installer does not run `xcode-select --install` for you (it opens a
@@ -32,6 +41,19 @@ Notes:
 - The installer checks that Neovim is 0.12 or later and stops if it is not. If your package
   manager only offers an older Neovim, install 0.12 another way (for example the official
   release from <https://github.com/neovim/neovim/releases>) and run the installer again.
+
+## Language tooling
+
+After the plugins are restored, the installer runs Neovim without a screen to fetch, once and without any prompt:
+
+- **Treesitter parsers** for bash, JavaScript, JSON, Python and Swift (built with the tree-sitter CLI and the C compiler);
+- **language servers, formatters and the linter** through Mason, into Neovim's own data folder: `basedpyright`, `ruff`, `typescript-language-server`, `json-lsp`, `bash-language-server`, `lua-language-server`, `prettier`, `shfmt`, `stylua` and `shellcheck`;
+- the completion menu's **prebuilt matcher** (no Rust toolchain is needed; if the download fails, completion still works with a slower built-in matcher);
+- the **English spell dictionary** (`spell/en.utf-8.spl`), unless your Neovim already includes it (the macOS build does).
+
+Running the installer again fetches only what is missing. If one item fails (for example the network drops) the installer names it, carries on with the rest, and ends with a non-zero status; run it again to retry. `:checkhealth fondue` lists each tool, parser and the dictionary. Nothing is downloaded while you edit.
+
+Swift files always get syntax highlighting. Their language server, `sourcekit-lsp`, is used only if it is already installed (it comes with Xcode on macOS); the installer does not install it.
 
 ## Manual step: choose the Nerd Font in your terminal
 

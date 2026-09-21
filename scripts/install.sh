@@ -23,7 +23,9 @@
 #   --skip-packages  do not install missing tools (the other steps still run)
 #
 # Steps: 1 prerequisites, 2 link nvim/, 3 restore plugins from the lockfile,
-# 4 repository safety setup (secret scan) when this is a git or jj clone.
+# 4 language tooling (Treesitter parsers, language servers, formatters, completion
+# matcher and spell dictionary), 5 repository safety setup (secret scan) when this is a
+# git or jj clone.
 # It never prompts, never edits terminal settings, and is safe to run again.
 # Exit status is 0 on success and non-zero on any failure.
 #
@@ -160,6 +162,13 @@ git|git|git|git
 jj|jj|jj|jujutsu
 tree-sitter CLI|tree-sitter|tree-sitter-cli|tree-sitter-cli
 C compiler|cc gcc clang|-|gcc
+Node.js|node|node|nodejs
+npm|npm|node|npm
+Python 3|python3|python3|python
+curl|curl|curl|curl
+tar|tar|gnu-tar|tar
+gzip|gzip|gzip|gzip
+unzip|unzip|unzip|unzip
 ripgrep|rg|ripgrep|ripgrep
 fd|fd|fd|fd
 gitleaks|gitleaks|gitleaks|gitleaks
@@ -228,7 +237,11 @@ check_tools() {
         MISSING_MANUAL="$MISSING_MANUAL
     - $label: run 'xcode-select --install' (a system dialog opens), then run this installer again"
       else
-        MISSING_PKGS="$MISSING_PKGS $pkg"
+        # Two tools can come from one package (Homebrew's node has npm too): list it once.
+        case " $MISSING_PKGS " in
+          *" $pkg "*) ;;
+          *) MISSING_PKGS="$MISSING_PKGS $pkg" ;;
+        esac
       fi
     fi
   done <<FONDUE_LIST
@@ -301,7 +314,7 @@ if [ "$CHECK_ONLY" -eq 0 ]; then # --check-only changes nothing and needs no tar
   fi
 fi
 
-step "1/4 Prerequisites ($OS)"
+step "1/5 Prerequisites ($OS)"
 [ "$DRY_RUN" -eq 1 ] && say "(dry run: nothing will be changed)"
 check_tools
 
@@ -360,7 +373,7 @@ else
 fi
 
 # --- Step 2: link nvim/ ------------------------------------------------------------
-step "2/4 Link the configuration"
+step "2/5 Link the configuration"
 [ "$NEED_LINK" -eq 1 ] || say "  $LINK already links to $TARGET; nothing to do."
 if [ -n "$CONFLICT" ]; then
   # Only reachable with --overwrite (otherwise the preflight already refused).
@@ -388,7 +401,7 @@ if [ "$NEED_LINK" -eq 1 ]; then
 fi
 
 # --- Step 3: restore plugins ---------------------------------------------------------
-step "3/4 Restore plugins from the lockfile"
+step "3/5 Restore plugins from the lockfile"
 if [ "$DRY_RUN" -eq 1 ]; then
   say "  would run: NVIM_APPNAME=$APPNAME nvim --headless \"+Lazy! restore\" +qa"
 else
@@ -398,8 +411,32 @@ else
   say ""
 fi
 
-# --- Step 4: repository safety ---------------------------------------------------------
-step "4/4 Repository safety setup (push-time secret scan)"
+# --- Step 4: language tooling ---------------------------------------------------------
+# Runs Neovim without a screen to install what the editor needs for the working languages:
+# Treesitter parsers, language servers, formatters, the completion matcher and the spell
+# dictionary. Each is fetched once and never asks a question; running this again does nothing
+# for what is already installed. A failure is named in the output and does not stop the others.
+step "4/5 Language tooling (parsers, servers, formatters, dictionary)"
+LANG_CMD="NVIM_APPNAME=$APPNAME nvim --headless \"+lua require('fondue.setup').run()\" +qa"
+if [ "$DRY_RUN" -eq 1 ]; then
+  say "  would run: $LANG_CMD"
+else
+  say "  running: $LANG_CMD"
+  lang_out=$(NVIM_APPNAME=$APPNAME nvim --headless "+lua require('fondue.setup').run()" +qa 2>&1)
+  lang_rc=$?
+  [ -z "$lang_out" ] || say "$lang_out"
+  # Lines starting with "  installed" are things this run added.
+  if printf '%s\n' "$lang_out" | grep -q '^  installed '; then
+    CHANGES=$((CHANGES + 1))
+  fi
+  if [ "$lang_rc" -ne 0 ]; then
+    say "  Language tooling: some items failed (named above). Fix the cause, then run this installer again."
+    FAILED=1
+  fi
+fi
+
+# --- Step 5: repository safety ---------------------------------------------------------
+step "5/5 Repository safety setup (push-time secret scan)"
 if [ -e "$REPO_DIR/.git" ] || [ -e "$REPO_DIR/.jj" ]; then
   if [ "$DRY_RUN" -eq 1 ]; then
     "$SCRIPT_DIR/setup-repo" --dry-run "$REPO_DIR" || FAILED=1
