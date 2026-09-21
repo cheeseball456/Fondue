@@ -53,7 +53,8 @@ Use a Python, JavaScript, JSON, bash or Swift file (any small project file will 
       stronger and changes as you move between blocks.
 - [ ] In a code file with a language server attached, rest the cursor on a variable name that appears several
       times: the other occurrences get a clearly visible background of their own (a tint that is not the
-      cursor-line colour, not the selection colour and not a diagnostic colour), without any key press. Plain
+      cursor-line colour, not the selection colour and not a diagnostic colour: clearly visible, yet
+      distinct from the cursor line, the selection and the diagnostics), without any key press. Plain
       text files and files without a language server are not expected to highlight.
 - [ ] The guide and word colours are worked out from the active colourscheme (see `nvim/lua/fondue/highlights.lua`,
       where the contrast targets are at the top); after `:colorscheme dayfox` (light) they are recalculated
@@ -99,9 +100,11 @@ These keys are the plugin's own insert-mode keys (they are not `Space` keys).
       Lua with `stylua`). In visual mode it formats only the selected lines.
 - [ ] If nothing needed changing, `Space c f` says "already formatted" (in the buffer and in a selection), so
       silence is never mistaken for a failure.
-- [ ] Styles: shell scripts are formatted by `shfmt` with two-space indentation (no tabs); Lua is formatted by
-      `stylua` using `nvim/stylua.toml` (two spaces, double quotes), so Lua files in this configuration keep
-      their style. Python (`ruff format`) and JavaScript and JSON (`prettier`) use their defaults.
+- [ ] Styles: shell scripts are formatted by `shfmt` with two-space indentation (no tabs), unless the script's
+      project has an `.editorconfig`, in which case `shfmt` follows that file (a project that says tabs keeps
+      its tabs). Lua is formatted by `stylua`: files in this configuration follow `nvim/stylua.toml` (two
+      spaces, double quotes), and a project's own `stylua.toml` or `.stylua.toml` wins for that project's Lua
+      files. Python (`ruff format`) and JavaScript and JSON (`prettier`) use their defaults.
 - [ ] In a file with no formatter and no language server, `Space c f` shows a short message and changes nothing.
 
 ## Editing helpers
@@ -143,6 +146,7 @@ These keys are the plugin's own insert-mode keys (they are not `Space` keys).
       cursor follows a long wrapped line instead of skipping over its wrapped part. With a count they keep
       their usual meaning (`3j` moves three real lines), `dj` still deletes two whole lines, and in insert mode
       the arrows are stock. In a Python (or any other code) file all four keys move by real lines.
+      These screen-row mappings are set only in plain-text files; no other kind of file gets them.
 
 ## Clipboard
 
@@ -164,7 +168,7 @@ These keys are the plugin's own insert-mode keys (they are not `Space` keys).
   `:checkhealth fondue`. The update changes `nvim/lazy-lock.json`, which records the exact
   commit of every plugin. Updating the Treesitter plugin rebuilds the parsers in the background, so the
   editor stays usable; if one cannot be rebuilt you get a one-line warning, and running `scripts/install.sh`
-  again retries it. If a language loses its colours afterwards, `:checkhealth fondue` says which parser is
+  again retries it (the installer also rebuilds any parser that is out of date). If a language loses its colours afterwards, `:checkhealth fondue` says which parser is
   the problem.
 - The completion plugin fetches its matcher itself when it first loads after an update, if the installer has
   not already done so. With downloads blocked, completion keeps working with a slower matcher and

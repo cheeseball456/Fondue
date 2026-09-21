@@ -1,5 +1,6 @@
 -- Colours for the indent guides and for the highlight of other uses of the word under the
--- cursor. Both are worked out from the ACTIVE colourscheme's own colours (its background, its
+-- cursor. The word highlight is clearly visible, yet distinct from the cursor line, the selection
+-- and the diagnostics. Both are worked out from the ACTIVE colourscheme's own colours (its background, its
 -- cursor-line and selection colours) so they stay readable whichever scheme is in use, and they
 -- are worked out again whenever the scheme changes (a scheme change clears every highlight).
 --
@@ -13,7 +14,9 @@ M.settings = {
   -- The same for the guide of the block the cursor is in: clearly stronger than the others.
   scope_contrast = 6.5,
   -- How clearly the background behind the other uses of the word under the cursor stands out
-  -- from the normal background (a background fill needs less than a line does).
+  -- from the normal background (a background fill needs less than a line does). It must be clearly
+  -- visible, but never mistaken for the cursor line, the selection or a diagnostic (diagnostics use
+  -- coloured text and underlines, not a background, so a background of its own cannot be confused with them).
   word_contrast = 1.9,
   -- The word background must also differ from the cursor line and the selection by at least
   -- this much (distance between two colours, 0 to about 440), or it would look like one of them.
