@@ -48,10 +48,16 @@ Use a Python, JavaScript, JSON, bash or Swift file (any small project file will 
 - [ ] Nested brackets, for example `[1, (2, {3: 4})]`, each level in a different colour.
 - [ ] Every fold is open when the file opens. On a function's first line press `zc`: the whole
       function collapses (not just lines at the same indentation). `zo` opens it, `zR` opens all folds.
-- [ ] Vertical indent guides show each indentation level, and the guide of the block your cursor
-      is in has a stronger colour that changes as you move between blocks.
-- [ ] Rest the cursor on a variable name that appears several times: the other occurrences are
-      highlighted softly without any key press.
+- [ ] Vertical indent guides show each indentation level in a clearly visible colour (each depth has its own
+      colour, matching the bracket colours), and the guide of the block your cursor is in is clearly
+      stronger and changes as you move between blocks.
+- [ ] In a code file with a language server attached, rest the cursor on a variable name that appears several
+      times: the other occurrences get a clearly visible background of their own (a tint that is not the
+      cursor-line colour, not the selection colour and not a diagnostic colour), without any key press. Plain
+      text files and files without a language server are not expected to highlight.
+- [ ] The guide and word colours are worked out from the active colourscheme (see `nvim/lua/fondue/highlights.lua`,
+      where the contrast targets are at the top); after `:colorscheme dayfox` (light) they are recalculated
+      for the light background, and `:colorscheme carbonfox` restores the first look.
 - [ ] A Swift file opens with colours and no error message, even if `sourcekit-lsp` is not installed.
 
 ## Language servers, diagnostics and code actions

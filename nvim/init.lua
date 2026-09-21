@@ -90,3 +90,4 @@ require("lazy").setup({
 --    runtimepath, and the next lines put back what they need.
 require("fondue.treesitter").setup() -- highlighting and folds per file type
 require("fondue.spell").setup() -- UK English spelling
+require("fondue.highlights").setup() -- indent guide and word highlight colours, from the colourscheme
