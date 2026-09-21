@@ -111,6 +111,20 @@ local function check_tools()
       end
     end
   end
+
+  -- nvim-treesitter's main branch needs a fairly new tree-sitter CLI to build parsers.
+  local treesitter = require("fondue.treesitter")
+  if vim.fn.executable("tree-sitter") == 1 then
+    local version = treesitter.cli_version()
+    if version and vim.version.lt(version, vim.version.parse(treesitter.min_cli_version)) then
+      health.error(
+        "tree-sitter CLI " .. tostring(version) .. " is older than " .. treesitter.min_cli_version .. ", so parsers cannot be built",
+        "Upgrade it (Homebrew: brew upgrade tree-sitter-cli; Arch: sudo pacman -Syu tree-sitter-cli)"
+      )
+    elseif not version then
+      health.warn("Could not read the tree-sitter CLI version, so the " .. treesitter.min_cli_version .. " minimum could not be checked")
+    end
+  end
 end
 
 -- Language servers, formatters, the linter, parsers, the spell dictionary and the completion
@@ -149,7 +163,10 @@ local function check_language_tooling()
   if setup.matcher_present() then
     health.ok("Completion matcher: prebuilt binary present")
   else
-    health.warn("Completion matcher binary is missing, so completion uses a slower matcher written in Lua", fix)
+    health.warn(
+      "Completion matcher binary is missing, so completion uses a slower matcher written in Lua",
+      { "Run scripts/install.sh to download it (also needed after :Lazy update moves the completion plugin to a newer release)", "If downloads are blocked, completion keeps working; try again on a network that reaches github.com" }
+    )
   end
 
   -- Swift's language server is optional, so this is information, not a problem.

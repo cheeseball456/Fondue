@@ -23,7 +23,7 @@ scripts/install.sh --overwrite                  # install as your default nvim c
 ```
 
 See [docs/PREREQUISITES.md](docs/PREREQUISITES.md) for every external tool, and
-[docs/SMOKE_TEST.md](docs/SMOKE_TEST.md) for the checklist to run after installing or updating. The installer also fetches the language tools (parsers, servers, formatters, dictionary) once; nothing downloads while you edit.
+[docs/SMOKE_TEST.md](docs/SMOKE_TEST.md) for the checklist to run after installing or updating. The installer also fetches the language tools (parsers, servers, formatters, dictionary, the completion matcher) once. Editing itself downloads nothing, with one exception: after `:Lazy update` moves the completion plugin to a newer release, that release's matcher is fetched the first time it loads (run `scripts/install.sh` after updating to fetch it up front).
 
 ## Layout
 
