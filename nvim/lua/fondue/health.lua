@@ -92,15 +92,9 @@ local function check_tools()
     elseif tool.jj_rule then
       local root = fondue_repo()
       if root and vim.uv.fs_stat(root .. "/.jj") then
-        health.error(
-          "jj is not installed, but this Fondue clone is a jj repository: jj pushes cannot be scanned",
-          "Run scripts/install.sh (Homebrew: jj, Arch: jujutsu)"
-        )
+        health.error("jj is not installed, but this Fondue clone is a jj repository: jj pushes cannot be scanned", "Run scripts/install.sh (Homebrew: jj, Arch: jujutsu)")
       else
-        health.warn(
-          "jj is not installed (needed for the push-scan alias if you use jj; an error inside a jj repository)",
-          "Run scripts/install.sh"
-        )
+        health.warn("jj is not installed (needed for the push-scan alias if you use jj; an error inside a jj repository)", "Run scripts/install.sh")
       end
     else
       local msg = tool.name .. " is not installed (used for " .. tool.used_for .. ")"
@@ -137,10 +131,7 @@ local function check_language_tooling()
     if require("fondue.tools").is_available(tool) then
       health.ok(tool.name .. " (" .. tool.kind .. "): installed")
     else
-      health.warn(
-        tool.name .. " is not installed (" .. tool.kind .. " for " .. tool.used_for .. ")",
-        { "Run scripts/install.sh", "or install it from :Mason" }
-      )
+      health.warn(tool.name .. " is not installed (" .. tool.kind .. " for " .. tool.used_for .. ")", { "Run scripts/install.sh", "or install it from :Mason" })
     end
   end
 
@@ -163,10 +154,10 @@ local function check_language_tooling()
   if setup.matcher_present() then
     health.ok("Completion matcher: prebuilt binary present")
   else
-    health.warn(
-      "Completion matcher binary is missing, so completion uses a slower matcher written in Lua",
-      { "Run scripts/install.sh to download it (also needed after :Lazy update moves the completion plugin to a newer release)", "If downloads are blocked, completion keeps working; try again on a network that reaches github.com" }
-    )
+    health.warn("Completion matcher binary is missing, so completion uses a slower matcher written in Lua", {
+      "Run scripts/install.sh to download it (also needed after :Lazy update moves the completion plugin to a newer release)",
+      "If downloads are blocked, completion keeps working; try again on a network that reaches github.com",
+    })
   end
 
   -- Swift's language server is optional, so this is information, not a problem.
@@ -329,10 +320,7 @@ local function check_repo()
   local has_jj = vim.uv.fs_stat(root .. "/.jj") ~= nil
 
   if not has_git and not has_jj then
-    health.warn(
-      root .. " is not a git or jj repository, so the push-time secret scan is not active",
-      "Once the repository exists, run scripts/setup-repo"
-    )
+    health.warn(root .. " is not a git or jj repository, so the push-time secret scan is not active", "Once the repository exists, run scripts/setup-repo")
   end
 
   if has_git then
@@ -354,10 +342,7 @@ local function check_repo()
   end
 
   if has_git or has_jj then
-    health.warn(
-      "Confirm GitHub secret-scanning push protection is enabled on the public repository",
-      { "Repository settings > Code security > Push protection", "This cannot be checked from here" }
-    )
+    health.warn("Confirm GitHub secret-scanning push protection is enabled on the public repository", { "Repository settings > Code security > Push protection", "This cannot be checked from here" })
   end
 end
 

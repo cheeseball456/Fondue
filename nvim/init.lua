@@ -7,10 +7,7 @@ if vim.fn.has("nvim-0.12") == 0 then
   local v = vim.version()
   vim.api.nvim_echo({
     {
-      string.format(
-        "Fondue needs Neovim 0.12 or later, but this is %d.%d.%d. Configuration not loaded.",
-        v.major, v.minor, v.patch
-      ),
+      string.format("Fondue needs Neovim 0.12 or later, but this is %d.%d.%d. Configuration not loaded.", v.major, v.minor, v.patch),
       "WarningMsg",
     },
   }, true, {})
@@ -34,8 +31,11 @@ vim.g.loaded_netrwFileHandlers = 1
 local lazypath = vim.fn.stdpath("data") .. "/lazy/lazy.nvim"
 if not (vim.uv or vim.loop).fs_stat(lazypath) then
   local out = vim.fn.system({
-    "git", "clone", "--filter=blob:none",
-    "https://github.com/folke/lazy.nvim.git", lazypath,
+    "git",
+    "clone",
+    "--filter=blob:none",
+    "https://github.com/folke/lazy.nvim.git",
+    lazypath,
   })
   if vim.v.shell_error ~= 0 then
     vim.api.nvim_echo({
