@@ -33,15 +33,18 @@ function M.apply(buf, has_syntax_tree)
   if win == -1 then
     return
   end
+  -- `vim.wo[win][0]` sets an option for this buffer in this window only, so it does not
+  -- follow the window when another file is opened in it.
+  local local_opts = vim.wo[win][0]
   if vim.tbl_contains(M.plain_text_filetypes, vim.bo[buf].filetype) then
-    vim.wo[win].spell = true
+    local_opts.spell = true
     -- Long lines wrap at word boundaries and wrapped lines keep their indent.
-    vim.wo[win].wrap = true
-    vim.wo[win].linebreak = true
-    vim.wo[win].breakindent = true
+    local_opts.wrap = true
+    local_opts.linebreak = true
+    local_opts.breakindent = true
   elseif has_syntax_tree then
     -- With a syntax tree, spell checking only looks at the spellable parts.
-    vim.wo[win].spell = true
+    local_opts.spell = true
   end
 end
 
