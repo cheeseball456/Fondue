@@ -85,3 +85,8 @@ require("lazy").setup({
   -- First run: if nightfox is not installed yet, use a built-in scheme meanwhile.
   install = { colorscheme = { "carbonfox", "habamax" } },
 })
+
+-- 6. Behaviour that is not a plugin. This comes after lazy.nvim because it trims the
+--    runtimepath, and the next lines put back what they need.
+require("fondue.treesitter").setup() -- highlighting and folds per file type
+require("fondue.spell").setup() -- UK English spelling
