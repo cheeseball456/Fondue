@@ -420,16 +420,43 @@ restore_plugins() {
   fi
 }
 
+# Print the plugins (one per line) whose folder is missing or is not at the commit named in the
+# lockfile. Prints nothing when all are right, or when there is no lockfile to compare with.
+plugins_not_at_locked_commit() {
+  lockfile=$TARGET/lazy-lock.json
+  [ -f "$lockfile" ] || return 0
+  plugin_dir=${XDG_DATA_HOME:-$HOME/.local/share}/$APPNAME/lazy
+  # each entry looks like:  "name": { "branch": "main", "commit": "<sha>" },
+  sed -n 's/^ *"\([^"]*\)": *{.*"commit": *"\([0-9a-f]*\)".*/\1 \2/p' "$lockfile" | while read -r name commit; do
+    have=$(git -C "$plugin_dir/$name" rev-parse HEAD 2>/dev/null)
+    [ "$have" = "$commit" ] || echo "$name (wanted ${commit%"${commit#????????}"}, have ${have:-none})"
+  done
+}
+
 if [ "$DRY_RUN" -eq 1 ]; then
   say "  would run: NVIM_APPNAME=$APPNAME nvim --headless \"+Lazy! restore\" +qa"
 else
   say "  running: NVIM_APPNAME=$APPNAME nvim --headless \"+Lazy! restore\" +qa"
   mkdir -p "$RESTORE_LOG_DIR" || die "could not create $RESTORE_LOG_DIR."
-  if restore_plugins >"$RESTORE_LOG" 2>&1; then
+  restore_ok=1
+  restore_plugins >"$RESTORE_LOG" 2>&1 || restore_ok=0
+  # Neovim exits 0 even when some plugins could not be fetched, so do not trust the exit status alone:
+  # check that every plugin in the lockfile is really at its locked commit.
+  RESTORE_WRONG=$(plugins_not_at_locked_commit)
+  esc=$(printf '\033')
+  if [ "$restore_ok" -eq 1 ] && [ -z "$RESTORE_WRONG" ]; then
     say "  Plugins restored from the lockfile. Details: $RESTORE_LOG"
+    # Network messages in the log are harmless when every plugin is nevertheless at its locked commit.
+    problems=$(sed "s/${esc}\[[0-9;]*m//g" "$RESTORE_LOG" | grep -c 'fatal:\|error:' )
+    if [ "$problems" -gt 0 ]; then
+      say "  (The log holds $problems fetch or git message(s), but every plugin is at its locked commit.)"
+    fi
   else
+    if [ -n "$RESTORE_WRONG" ]; then
+      say "  These plugins are not at the commit the lockfile asks for:"
+      printf '%s\n' "$RESTORE_WRONG" | sed 's/^/    /'
+    fi
     say "  Plugin restore failed. The end of its log ($RESTORE_LOG):"
-    esc=$(printf '\033')
     tail -n 30 "$RESTORE_LOG" | sed "s/${esc}\[[0-9;]*m//g" | sed 's/^/    /'
     die "plugin restore failed (see $RESTORE_LOG)."
   fi
@@ -458,14 +485,15 @@ else
   } | tee "$lang_dir/output"
   lang_rc=$(cat "$lang_dir/status" 2>/dev/null)
   [ -n "$lang_rc" ] || lang_rc=1
-  # Lines starting with "  installed" are things this run added.
-  if grep -q '^  installed ' "$lang_dir/output"; then
+  # Lines with "  installed  " are things this run added. (Not anchored to the start of the line: Neovim
+  # sometimes ends one of its own messages without a line break, and our line then follows it directly.)
+  if grep -q '  installed  ' "$lang_dir/output"; then
     CHANGES=$((CHANGES + 1))
   fi
   if [ "$lang_rc" -ne 0 ]; then
     say "  Language tooling: some items failed (named above). Fix the cause, then run this installer again."
     FAILED=1
-  elif ! grep -q '^  finished ' "$lang_dir/output"; then
+  elif ! grep -q '  finished   language tooling steps complete' "$lang_dir/output"; then
     # Neovim exited normally but the setup never said it finished: an error stopped it early
     # (Neovim's own exit status is 0 even when a command raises an error).
     say "  Language tooling did not finish (an error stopped it; see the lines above). Fix the cause, then run this installer again."
