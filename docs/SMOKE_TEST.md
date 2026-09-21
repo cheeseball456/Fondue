@@ -62,8 +62,8 @@ Use a Python, JavaScript, JSON, bash or Swift file (any small project file will 
 
 ## Language servers, diagnostics and code actions
 
-- [ ] Opening a Python, JavaScript, JSON, bash or Lua file starts its language server (`:checkhealth vim.lsp`
-      lists it). A deliberate mistake (an undefined name in Python, a stray comma in JSON) shows a
+- [ ] Opening a Python, JavaScript, JSON, bash or Lua file starts its language server. `:checkhealth vim.lsp`
+      lists the servers attached to the current buffer (Neovim 0.12 has no `:LspInfo`). A deliberate mistake (an undefined name in Python, a stray comma in JSON) shows a
       diagnostic. In Python an unused import and an undefined name are each shown once.
 - [ ] Opening a Lua file in this configuration does not warn about the global `vim`.
 - [ ] Python: inlay hints (small inline labels such as parameter names) appear without any action.
