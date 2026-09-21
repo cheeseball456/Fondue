@@ -1,0 +1,21 @@
+# macOS
+.DS_Store
+
+# Editor backup and swap files
+*~
+*.swp
+*.swo
+.*.sw?
+*.bak
+
+# Local workflow tooling (Claude agents, commands and instructions); not part of a release.
+.claude/
+CLAUDE.md
+
+# Design, requirements and review documents: kept locally, not published.
+openspec/
+REQUIREMENTS.md
+ARCHITECTURE.md
+QA_REPORT.md
+
+# Note: nvim/lazy-lock.json is deliberately NOT ignored; it pins every plugin.

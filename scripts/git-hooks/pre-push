@@ -1,0 +1,3 @@
+#!/bin/sh
+# Git pre-push hook: all the logic lives in the shared scan script.
+exec "$(dirname "$0")/../secret-scan" git-hook

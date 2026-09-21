@@ -1,0 +1,77 @@
+#!/bin/sh
+# Turn on the push-time secret scan for a Fondue clone. Safe to run repeatedly:
+# it only changes something when the setting is missing or different.
+#
+# Usage: setup-repo [--dry-run] [REPO_DIR]     (REPO_DIR defaults to this clone)
+#
+# Git repository: points core.hooksPath at scripts/git-hooks (the pre-push hook).
+# jj repository:  adds the `jj push` alias, which scans and then runs `jj git push`.
+
+dry_run=0
+repo=""
+for arg in "$@"; do
+  case $arg in
+    --dry-run) dry_run=1 ;;
+    -h|--help) sed -n '2,8p' "$0"; exit 0 ;;
+    *) repo=$arg ;;
+  esac
+done
+
+if [ -z "$repo" ]; then
+  repo=$(cd "$(dirname "$0")/.." && pwd -P) || exit 1
+else
+  repo=$(cd "$repo" 2>/dev/null && pwd -P) || { echo "setup-repo: no such directory: $repo" >&2; exit 1; }
+fi
+
+changed=0
+failed=0
+
+# --- Git: the pre-push hook -------------------------------------------------
+# Only treat $repo as a git repository if it is its own top level (not a
+# folder that happens to sit inside some other repository).
+top=$(git -C "$repo" rev-parse --show-toplevel 2>/dev/null)
+if [ -n "$top" ] && [ "$(cd "$top" && pwd -P)" = "$repo" ]; then
+  want="scripts/git-hooks" # relative, so the clone can be moved
+  have=$(git -C "$repo" config --local --get core.hooksPath)
+  if [ "$have" = "$want" ]; then
+    echo "setup-repo: git hooks path already set."
+  elif [ "$dry_run" -eq 1 ]; then
+    echo "setup-repo: would set git core.hooksPath to $want"
+    changed=1
+  else
+    git -C "$repo" config --local core.hooksPath "$want" || failed=1
+    echo "setup-repo: set git core.hooksPath to $want"
+    changed=1
+  fi
+else
+  echo "setup-repo: $repo is not a git repository; skipping the git hook."
+fi
+
+# --- jj: the `jj push` alias ------------------------------------------------
+if [ -d "$repo/.jj" ]; then
+  if command -v jj >/dev/null 2>&1; then
+    # `jj util exec` runs an external command; the trailing "jj-push" fills $0 so
+    # that "$@" is exactly the arguments typed after `jj push`. The && means the
+    # push only happens if the scan passes.
+    want='["util", "exec", "--", "sh", "-c", "\"$(jj root)/scripts/secret-scan\" jj && jj git push \"$@\"", "jj-push"]'
+    have=$(jj -R "$repo" config get aliases.push 2>/dev/null)
+    if [ "$have" = "$want" ]; then
+      echo "setup-repo: jj push alias already set."
+    elif [ "$dry_run" -eq 1 ]; then
+      echo "setup-repo: would set the jj push alias"
+      changed=1
+    else
+      jj -R "$repo" config set --repo aliases.push "$want" || failed=1
+      echo "setup-repo: set the jj push alias"
+      changed=1
+    fi
+  else
+    echo "setup-repo: jj is not installed; skipping the jj alias (install jj, then run this again)." >&2
+  fi
+else
+  echo "setup-repo: $repo is not a jj repository; skipping the jj alias."
+fi
+
+[ "$failed" -eq 0 ] || { echo "setup-repo: FAILED" >&2; exit 1; }
+[ "$changed" -eq 0 ] && echo "setup-repo: nothing to do."
+exit 0
