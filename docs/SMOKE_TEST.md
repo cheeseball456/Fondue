@@ -86,9 +86,18 @@ These keys are the plugin's own insert-mode keys (they are not `Space` keys).
 - [ ] Type a path prefix such as `./` inside a comment or string: file names are offered.
 - [ ] Other keys of the completion plugin, all in insert mode: `Ctrl-e` hides the menu, `Ctrl-Space` opens it (and
       shows or hides the documentation), `Ctrl-b` and `Ctrl-f` scroll the documentation, `Ctrl-k` shows the
-      function signature. The same plugin also serves the command line (`:`): `Tab` and `Shift-Tab`, `Ctrl-n`
-      and `Ctrl-p`, and the left and right arrows move through its menu when one is showing, and
-      `Ctrl-Space` opens it.
+      function signature.
+- [ ] The command line (`:`) behaves the same way: start typing a command and a menu appears with nothing
+      chosen yet; the down and up arrows (or `Ctrl-n` and `Ctrl-p`) move through it without changing what you
+      typed, and `Enter` on an item you moved to accepts it. `Tab` and `Shift-Tab` also move the selection,
+      the same way the down and up arrows do (there is nothing to accept into, so they never do anything
+      else). `Esc` closes the menu first and leaves the command line as you typed it; a second `Esc` leaves
+      the command line as usual. With no menu open, the up and down arrows still recall your command-line
+      history exactly as before.
+- [ ] The command-line window (`q:`, opened from the command line or normal mode) behaves the same way too:
+      start typing a command there and the same menu appears, with `Tab`/`Shift-Tab` and the arrow keys moving
+      the selection and `Esc` closing the menu first, exactly as on the plain command line. Moving between
+      lines and editing past commands in that window (Normal mode) is unaffected.
 - [ ] Type `def` in a Python file and choose the function snippet: the template appears with the cursor on the
       first field. `Tab` jumps to the next field and `Shift-Tab` back.
 
