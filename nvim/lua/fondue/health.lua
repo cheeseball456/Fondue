@@ -39,9 +39,9 @@ local function fondue_repo()
 end
 
 -- Tools to look for, each with a plain "used for" description shown in the report.
--- A missing `needed_now` tool is an error; any other tool is a warning, because no current
--- feature needs it. When a feature starts to use a tool, raise its severity to an error
--- by setting `needed_now = true`. (jj has its own rule, see check_tools.)
+-- A missing `needed_now` tool is an error, because a current feature depends on it; any
+-- other tool is a warning. When a feature starts to use a tool, raise its severity to an
+-- error by setting `needed_now = true`. (jj has its own rule, see check_tools.)
 -- Keep this list in step with scripts/install.sh and docs/PREREQUISITES.md.
 local tools = {
   { name = "git", exes = { "git" }, needed_now = true, used_for = "version control, plugin installs and the pre-push hook" },
@@ -54,8 +54,15 @@ local tools = {
   -- jj is used by the push-scan alias in a jj repository. A missing jj is an error when the
   -- Fondue clone is a jj repository and a warning otherwise (see check_tools).
   { name = "jj", exes = { "jj" }, jj_rule = true },
-  { name = "tree-sitter CLI", exes = { "tree-sitter" }, used_for = "building Treesitter parsers" },
-  { name = "C compiler", exes = { "cc", "gcc", "clang" }, used_for = "building Treesitter parsers" },
+  { name = "tree-sitter CLI", exes = { "tree-sitter" }, needed_now = true, used_for = "building Treesitter parsers for syntax highlighting" },
+  { name = "C compiler", exes = { "cc", "gcc", "clang" }, needed_now = true, used_for = "building Treesitter parsers for syntax highlighting" },
+  { name = "Node.js", exes = { "node" }, needed_now = true, used_for = "JavaScript-based language servers and formatters installed by Mason" },
+  { name = "npm", exes = { "npm" }, needed_now = true, used_for = "installing JavaScript-based language servers and formatters through Mason" },
+  { name = "Python 3", exes = { "python3" }, needed_now = true, used_for = "Python-based language servers installed by Mason" },
+  { name = "curl", exes = { "curl" }, needed_now = true, used_for = "downloading parsers, tools, snippets and the spell dictionary" },
+  { name = "tar", exes = { "tar" }, needed_now = true, used_for = "unpacking downloads" },
+  { name = "gzip", exes = { "gzip" }, needed_now = true, used_for = "unpacking downloads" },
+  { name = "unzip", exes = { "unzip" }, needed_now = true, used_for = "unpacking downloads" },
   { name = "ripgrep", exes = { "rg" }, used_for = "project text search" },
   { name = "fd", exes = { "fd" }, used_for = "file search" },
 }
@@ -85,15 +92,9 @@ local function check_tools()
     elseif tool.jj_rule then
       local root = fondue_repo()
       if root and vim.uv.fs_stat(root .. "/.jj") then
-        health.error(
-          "jj is not installed, but this Fondue clone is a jj repository: jj pushes cannot be scanned",
-          "Run scripts/install.sh (Homebrew: jj, Arch: jujutsu)"
-        )
+        health.error("jj is not installed, but this Fondue clone is a jj repository: jj pushes cannot be scanned", "Run scripts/install.sh (Homebrew: jj, Arch: jujutsu)")
       else
-        health.warn(
-          "jj is not installed (needed for the push-scan alias if you use jj; an error inside a jj repository)",
-          "Run scripts/install.sh"
-        )
+        health.warn("jj is not installed (needed for the push-scan alias if you use jj; an error inside a jj repository)", "Run scripts/install.sh")
       end
     else
       local msg = tool.name .. " is not installed (used for " .. tool.used_for .. ")"
@@ -103,6 +104,69 @@ local function check_tools()
         health.warn(msg, "Run scripts/install.sh")
       end
     end
+  end
+
+  -- nvim-treesitter's main branch needs a fairly new tree-sitter CLI to build parsers.
+  local treesitter = require("fondue.treesitter")
+  if vim.fn.executable("tree-sitter") == 1 then
+    local version = treesitter.cli_version()
+    if version and vim.version.lt(version, vim.version.parse(treesitter.min_cli_version)) then
+      health.error(
+        "tree-sitter CLI " .. tostring(version) .. " is older than " .. treesitter.min_cli_version .. ", so parsers cannot be built",
+        "Upgrade it (Homebrew: brew upgrade tree-sitter-cli; Arch: sudo pacman -Syu tree-sitter-cli)"
+      )
+    elseif not version then
+      health.warn("Could not read the tree-sitter CLI version, so the " .. treesitter.min_cli_version .. " minimum could not be checked")
+    end
+  end
+end
+
+-- Language servers, formatters, the linter, parsers, the spell dictionary and the completion
+-- matcher: everything the installer's language step fetches.
+local function check_language_tooling()
+  health.start("Fondue: language tooling")
+  local fix = { "Run scripts/install.sh (it only fetches what is missing)" }
+
+  for _, tool in ipairs(require("fondue.tools").tools) do
+    if require("fondue.tools").is_available(tool) then
+      health.ok(tool.name .. " (" .. tool.kind .. "): installed")
+    else
+      health.warn(tool.name .. " is not installed (" .. tool.kind .. " for " .. tool.used_for .. ")", { "Run scripts/install.sh", "or install it from :Mason" })
+    end
+  end
+
+  local treesitter = require("fondue.treesitter")
+  for _, lang in ipairs(treesitter.parsers) do
+    if treesitter.is_installed(lang) and not treesitter.is_current(lang) then
+      health.warn("Treesitter parser for " .. lang .. " is installed but out of date (its last rebuild failed), so its highlighting may not match the queries", fix)
+    elseif treesitter.is_installed(lang) then
+      health.ok("Treesitter parser for " .. lang .. ": installed")
+    else
+      health.warn("Treesitter parser for " .. lang .. " is not installed, so " .. lang .. " files use Vim's own highlighting", fix)
+    end
+  end
+
+  if require("fondue.spell").dictionary_present() then
+    health.ok("Spell dictionary (spell/en.utf-8.spl): found on the runtimepath")
+  else
+    health.warn("Spell dictionary (spell/en.utf-8.spl) was not found, so spell checking has no English words", fix)
+  end
+
+  local setup = require("fondue.setup")
+  if setup.matcher_present() then
+    health.ok("Completion matcher: prebuilt binary present")
+  else
+    health.warn("Completion matcher binary is missing, so completion uses a slower matcher written in Lua", {
+      "Run scripts/install.sh to download it (also needed after :Lazy update moves the completion plugin to a newer release)",
+      "If downloads are blocked, completion keeps working; try again on a network that reaches github.com",
+    })
+  end
+
+  -- Swift's language server is optional, so this is information, not a problem.
+  if vim.fn.executable("sourcekit-lsp") == 1 then
+    health.info("Swift language server (sourcekit-lsp): found, Swift files get completion and diagnostics")
+  else
+    health.info("Swift editing has no language server: sourcekit-lsp is not installed (it comes with Xcode on macOS); Swift files still get syntax highlighting")
   end
 end
 
@@ -258,10 +322,7 @@ local function check_repo()
   local has_jj = vim.uv.fs_stat(root .. "/.jj") ~= nil
 
   if not has_git and not has_jj then
-    health.warn(
-      root .. " is not a git or jj repository, so the push-time secret scan is not active",
-      "Once the repository exists, run scripts/setup-repo"
-    )
+    health.warn(root .. " is not a git or jj repository, so the push-time secret scan is not active", "Once the repository exists, run scripts/setup-repo")
   end
 
   if has_git then
@@ -283,15 +344,13 @@ local function check_repo()
   end
 
   if has_git or has_jj then
-    health.warn(
-      "Confirm GitHub secret-scanning push protection is enabled on the public repository",
-      { "Repository settings > Code security > Push protection", "This cannot be checked from here" }
-    )
+    health.warn("Confirm GitHub secret-scanning push protection is enabled on the public repository", { "Repository settings > Code security > Push protection", "This cannot be checked from here" })
   end
 end
 
 function M.check()
   check_tools()
+  check_language_tooling()
   check_invariants()
   check_clipboard()
   check_repo()

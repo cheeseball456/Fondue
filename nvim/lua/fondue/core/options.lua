@@ -11,6 +11,7 @@ o.ignorecase = true -- search ignores case...
 o.smartcase = true -- ...unless you type a capital letter
 o.undofile = true -- keep undo history across sessions
 o.timeoutlen = 400 -- how long to wait for the next key (which-key menu delay)
+o.foldlevelstart = 99 -- a file opens with every fold open
 
 -- No autosave, ever: files are written only when you ask (Space w or :w).
 -- These are already off by default; setting them makes the intent explicit.

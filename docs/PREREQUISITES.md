@@ -14,14 +14,24 @@ Supported systems: **macOS** (Homebrew) and **Arch Linux** (pacman). Windows is 
 | git | version control, plugin installs, the pre-push hook | `git` | `git` |
 | gitleaks | push-time secret scan (blocks a push containing a secret) | `gitleaks` | `gitleaks` |
 | jj | push-time secret scan alias (`jj push`) and version control for jj repositories, including this one (a missing jj is an error in `:checkhealth fondue` inside a jj repository and a warning elsewhere) | `jj` | `jujutsu` |
-| tree-sitter CLI | building Treesitter parsers | `tree-sitter-cli` | `tree-sitter-cli` |
-| C compiler | building Treesitter parsers | Xcode Command Line Tools: `xcode-select --install` | `gcc` |
+| tree-sitter CLI (0.26.1 or later) | building Treesitter parsers (needed for syntax highlighting; `:checkhealth fondue` reports it missing, or older than 0.26.1, as an error) | `tree-sitter-cli` | `tree-sitter-cli` |
+| C compiler | building Treesitter parsers (needed for syntax highlighting; reported as an error when missing) | Xcode Command Line Tools: `xcode-select --install` | `gcc` |
+| Node.js | running the JavaScript-based language servers and formatters that Mason installs | `node` | `nodejs` |
+| npm | installing those JavaScript-based tools | `node` (includes npm) | `npm` |
+| Python 3 (with `venv`) | installing the Python-based language servers (`basedpyright`, `ruff`) into their own environments | `python3` | `python` |
+| curl | downloading parsers, tools, snippets and the spell dictionary | `curl` | `curl` |
+| tar | unpacking downloads | `gnu-tar` | `tar` |
+| gzip | unpacking downloads | `gzip` | `gzip` |
+| unzip | unpacking downloads | `unzip` | `unzip` |
 | ripgrep (`rg`) | project text search | `ripgrep` | `ripgrep` |
 | fd | file search | `fd` | `fd` |
 | Nerd Font | icons in the editor | cask `font-jetbrains-mono-nerd-font` | `ttf-jetbrains-mono-nerd` |
 | wl-clipboard (Arch only) | Neovim's system clipboard (`unnamedplus`) needs a helper program on Linux; the Arch desktop uses Wayland | nothing extra (`pbcopy`/`pbpaste` are built in) | `wl-clipboard` |
 
 Notes:
+
+- The tree-sitter CLI must be 0.26.1 or later: the Treesitter plugin builds parsers with it, and an older one fails with a build error. Homebrew and Arch package recent versions; `tree-sitter --version` shows yours, and `:checkhealth fondue` checks it.
+- macOS already has `curl`, `tar`, `gzip`, `unzip` and a Python 3, and an Arch base system has `curl`, `tar`, `gzip` and `unzip`, so on most machines the installer only adds Node.js (and Python on Arch).
 
 - On macOS no clipboard tool needs installing. On Arch, without `wl-clipboard` Neovim reports "No provider" on every yank or paste; `:checkhealth fondue` names this fix. Over SSH no local helper is needed (copying uses OSC 52).
 - On macOS the installer does not run `xcode-select --install` for you (it opens a
@@ -32,6 +42,23 @@ Notes:
 - The installer checks that Neovim is 0.12 or later and stops if it is not. If your package
   manager only offers an older Neovim, install 0.12 another way (for example the official
   release from <https://github.com/neovim/neovim/releases>) and run the installer again.
+
+## Language tooling
+
+After the plugins are restored, the installer runs Neovim without a screen to fetch, once and without any prompt:
+
+- **Treesitter parsers** for bash, JavaScript, JSON, Python and Swift (built with the tree-sitter CLI and the C compiler);
+- **language servers, formatters and the linter** through Mason, into Neovim's own data folder: `basedpyright`, `ruff`, `typescript-language-server`, `json-lsp`, `bash-language-server`, `lua-language-server`, `prettier`, `shfmt`, `stylua` and `shellcheck`;
+- the completion menu's **prebuilt matcher** (no Rust toolchain is needed; if the download fails, completion still works with a slower built-in matcher);
+- the **English spell dictionary** (`spell/en.utf-8.spl`), unless your Neovim already includes it (the macOS build does).
+
+**Disk space.** The language tools, parsers and plugins take roughly 650 MB in Neovim's data folder (measured: 647 MB; most of it is the language servers, formatters and their runtimes). They all live in Neovim's own data folder for the chosen name (for example `~/.local/share/fondue`), so removing that folder removes them.
+
+Running the installer again fetches only what is missing. If one item fails (for example the network drops) the installer names it and the reason, carries on with the rest, and ends with a non-zero status; run it again to retry. `:checkhealth fondue` lists each tool, parser, the dictionary and the completion matcher.
+
+**When downloads happen.** Everything above is fetched by the installer, once. Editing downloads nothing, with one exception: the completion plugin (`blink.cmp`) fetches its prebuilt matcher itself the first time it loads if the matcher for the plugin's current release is missing. That happens after `:Lazy update` moves the plugin to a newer release, or if the installer's download failed. So after updating plugins, run `scripts/install.sh` again: it downloads the new matcher up front, and updating the Treesitter plugin rebuilds the parsers in the background (a parser that fails to rebuild is reported in one line; run the installer again to retry). If downloads are blocked (a firewall or no network), nothing breaks: completion keeps working with a slower matcher built into the plugin, and `:checkhealth fondue` shows a warning until the matcher can be fetched from github.com.
+
+Swift files always get syntax highlighting. Their language server, `sourcekit-lsp`, is used only if it is already installed (it comes with Xcode on macOS); the installer does not install it.
 
 ## Manual step: choose the Nerd Font in your terminal
 
@@ -68,6 +95,7 @@ the installer refuses, changes nothing, and explains both choices.
   `--appname fondue` is the cleaner way to try Fondue: it has its own data, state and cache folders.
 - A script that calls the installer (for example a dotfiles setup script) must pass `--appname NAME`
   or `--overwrite`; without one the installer refuses and exits with a non-zero status.
+- The plugin restore step is chatty (every clone and checkout), so its output is saved to `install-restore.log` in Neovim's state folder for the chosen name (for example `~/.local/state/fondue/install-restore.log`); the installer shows a one-line summary with that path, and the end of the log if the restore fails.
 - Running the same command again changes nothing. The installer honours `XDG_CONFIG_HOME` when
   choosing where to link, and never edits your shell or terminal settings.
 - With a custom name it ends by printing the shell alias line to add (it does not write it).
@@ -80,6 +108,9 @@ The Fondue repository is public. If you push to it, set up secret scanning first
   turns on the push-time scan: a Git `pre-push` hook for plain git, and a `jj push` alias
   for jj. Both run the same script, `scripts/secret-scan`, which scans every commit that has
   not been published yet (in a jj repository that includes the working-copy commit).
+- **Works from a jj workspace too.** In a secondary jj workspace (created with `jj workspace add`, no `.git`
+  folder of its own) the scan finds the shared git store through jj, so `jj push` works there as well. If it
+  cannot find that store it blocks the push rather than guess.
 - **Use `jj push`, not `jj git push`.** Typing `jj git push` directly **bypasses the local
   scan**, because jj does not run Git hooks. `git push --no-verify` also bypasses the hook.
   `:checkhealth fondue` confirms the alias and hook are configured, but it cannot stop you

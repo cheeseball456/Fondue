@@ -24,5 +24,31 @@ return {
     -- The undo tree ships with Neovim 0.12 but must be loaded with :packadd first.
     { lhs = "<leader>u", desc = "Undo tree", action = "<cmd>packadd nvim.undotree | Undotree<cr>" },
     { lhs = "<leader>p", desc = "Plugin manager", action = "<cmd>Lazy<cr>" },
+
+    -- Code tools. Formatting happens only when you press this; never on save.
+    {
+      mode = { "n", "x" },
+      lhs = "<leader>cf",
+      desc = "Format buffer or selection",
+      action = function()
+        require("fondue.code_tools").format()
+      end,
+    },
+    {
+      lhs = "<leader>ch",
+      desc = "Toggle inlay hints",
+      action = function()
+        require("fondue.code_tools").toggle_inlay_hints()
+      end,
+    },
+    -- Fix group: what the language server offers at the cursor (or for the selection).
+    {
+      mode = { "n", "x" },
+      lhs = "<leader>fa",
+      desc = "Code action",
+      action = function()
+        require("fondue.code_tools").code_action()
+      end,
+    },
   },
 }

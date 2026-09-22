@@ -23,7 +23,9 @@
 #   --skip-packages  do not install missing tools (the other steps still run)
 #
 # Steps: 1 prerequisites, 2 link nvim/, 3 restore plugins from the lockfile,
-# 4 repository safety setup (secret scan) when this is a git or jj clone.
+# 4 language tooling (Treesitter parsers, language servers, formatters, completion
+# matcher and spell dictionary), 5 repository safety setup (secret scan) when this is a
+# git or jj clone.
 # It never prompts, never edits terminal settings, and is safe to run again.
 # Exit status is 0 on success and non-zero on any failure.
 #
@@ -160,6 +162,13 @@ git|git|git|git
 jj|jj|jj|jujutsu
 tree-sitter CLI|tree-sitter|tree-sitter-cli|tree-sitter-cli
 C compiler|cc gcc clang|-|gcc
+Node.js|node|node|nodejs
+npm|npm|node|npm
+Python 3|python3|python3|python
+curl|curl|curl|curl
+tar|tar|gnu-tar|tar
+gzip|gzip|gzip|gzip
+unzip|unzip|unzip|unzip
 ripgrep|rg|ripgrep|ripgrep
 fd|fd|fd|fd
 gitleaks|gitleaks|gitleaks|gitleaks
@@ -228,7 +237,11 @@ check_tools() {
         MISSING_MANUAL="$MISSING_MANUAL
     - $label: run 'xcode-select --install' (a system dialog opens), then run this installer again"
       else
-        MISSING_PKGS="$MISSING_PKGS $pkg"
+        # Two tools can come from one package (Homebrew's node has npm too): list it once.
+        case " $MISSING_PKGS " in
+          *" $pkg "*) ;;
+          *) MISSING_PKGS="$MISSING_PKGS $pkg" ;;
+        esac
       fi
     fi
   done <<FONDUE_LIST
@@ -301,7 +314,7 @@ if [ "$CHECK_ONLY" -eq 0 ]; then # --check-only changes nothing and needs no tar
   fi
 fi
 
-step "1/4 Prerequisites ($OS)"
+step "1/5 Prerequisites ($OS)"
 [ "$DRY_RUN" -eq 1 ] && say "(dry run: nothing will be changed)"
 check_tools
 
@@ -360,7 +373,7 @@ else
 fi
 
 # --- Step 2: link nvim/ ------------------------------------------------------------
-step "2/4 Link the configuration"
+step "2/5 Link the configuration"
 [ "$NEED_LINK" -eq 1 ] || say "  $LINK already links to $TARGET; nothing to do."
 if [ -n "$CONFLICT" ]; then
   # Only reachable with --overwrite (otherwise the preflight already refused).
@@ -388,18 +401,110 @@ if [ "$NEED_LINK" -eq 1 ]; then
 fi
 
 # --- Step 3: restore plugins ---------------------------------------------------------
-step "3/4 Restore plugins from the lockfile"
+step "3/5 Restore plugins from the lockfile"
+# The restore prints hundreds of lines (every clone and checkout), so its output goes to a log file
+# in Neovim's state folder; only a one-line summary is shown, and the end of the log if it fails.
+RESTORE_LOG_DIR=${XDG_STATE_HOME:-$HOME/.local/state}/$APPNAME
+RESTORE_LOG=$RESTORE_LOG_DIR/install-restore.log
+
+restore_plugins() {
+  # Headless and non-interactive: lazy.nvim installs itself, then every plugin at its locked commit.
+  # git would print a long "detached HEAD" explanation for each plugin (they are deliberately checked
+  # out at an exact commit), so that one piece of advice is turned off, for this command only. If the
+  # caller already uses GIT_CONFIG_COUNT we leave their settings alone.
+  if [ -z "${GIT_CONFIG_COUNT:-}" ]; then
+    GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=advice.detachedHead GIT_CONFIG_VALUE_0=false \
+      NVIM_APPNAME=$APPNAME nvim --headless "+Lazy! restore" +qa
+  else
+    NVIM_APPNAME=$APPNAME nvim --headless "+Lazy! restore" +qa
+  fi
+}
+
+# Print the plugins (one per line) whose folder is missing or is not at the commit named in the
+# lockfile. Prints nothing when all are right, or when there is no lockfile to compare with.
+plugins_not_at_locked_commit() {
+  lockfile=$TARGET/lazy-lock.json
+  [ -f "$lockfile" ] || return 0
+  plugin_dir=${XDG_DATA_HOME:-$HOME/.local/share}/$APPNAME/lazy
+  # each entry looks like:  "name": { "branch": "main", "commit": "<sha>" },
+  sed -n 's/^ *"\([^"]*\)": *{.*"commit": *"\([0-9a-f]*\)".*/\1 \2/p' "$lockfile" | while read -r name commit; do
+    have=$(git -C "$plugin_dir/$name" rev-parse HEAD 2>/dev/null)
+    [ "$have" = "$commit" ] || echo "$name (wanted ${commit%"${commit#????????}"}, have ${have:-none})"
+  done
+}
+
 if [ "$DRY_RUN" -eq 1 ]; then
   say "  would run: NVIM_APPNAME=$APPNAME nvim --headless \"+Lazy! restore\" +qa"
 else
   say "  running: NVIM_APPNAME=$APPNAME nvim --headless \"+Lazy! restore\" +qa"
-  # Headless and non-interactive: lazy.nvim installs itself, then every plugin at its locked commit.
-  NVIM_APPNAME=$APPNAME nvim --headless "+Lazy! restore" +qa || die "plugin restore failed."
+  mkdir -p "$RESTORE_LOG_DIR" || die "could not create $RESTORE_LOG_DIR."
+  restore_ok=1
+  restore_plugins >"$RESTORE_LOG" 2>&1 || restore_ok=0
+  # Neovim exits 0 even when some plugins could not be fetched, so do not trust the exit status alone:
+  # check that every plugin in the lockfile is really at its locked commit.
+  RESTORE_WRONG=$(plugins_not_at_locked_commit)
+  esc=$(printf '\033')
+  if [ "$restore_ok" -eq 1 ] && [ -z "$RESTORE_WRONG" ]; then
+    say "  Plugins restored from the lockfile. Details: $RESTORE_LOG"
+    # Network messages in the log are harmless when every plugin is nevertheless at its locked commit.
+    problems=$(sed "s/${esc}\[[0-9;]*m//g" "$RESTORE_LOG" | grep -c 'fatal:\|error:' )
+    if [ "$problems" -gt 0 ]; then
+      say "  (The log holds $problems fetch or git message(s), but every plugin is at its locked commit.)"
+    fi
+  else
+    if [ -n "$RESTORE_WRONG" ]; then
+      say "  These plugins are not at the commit the lockfile asks for:"
+      printf '%s\n' "$RESTORE_WRONG" | sed 's/^/    /'
+    fi
+    say "  Plugin restore failed. The end of its log ($RESTORE_LOG):"
+    tail -n 30 "$RESTORE_LOG" | sed "s/${esc}\[[0-9;]*m//g" | sed 's/^/    /'
+    die "plugin restore failed (see $RESTORE_LOG)."
+  fi
   say ""
 fi
 
-# --- Step 4: repository safety ---------------------------------------------------------
-step "4/4 Repository safety setup (push-time secret scan)"
+# --- Step 4: language tooling ---------------------------------------------------------
+# Runs Neovim without a screen to install what the editor needs for the working languages:
+# Treesitter parsers, language servers, formatters, the completion matcher and the spell
+# dictionary. Each is fetched once and never asks a question; running this again does nothing
+# for what is already installed. A failure is named in the output and does not stop the others.
+step "4/5 Language tooling (parsers, servers, formatters, dictionary)"
+LANG_CMD="NVIM_APPNAME=$APPNAME nvim --headless \"+lua require('fondue.setup').run()\" +qa"
+if [ "$DRY_RUN" -eq 1 ]; then
+  say "  would run: $LANG_CMD"
+else
+  say "  running: $LANG_CMD"
+  say "  This downloads parsers, servers and a dictionary, so it can take a minute or two on a new machine."
+  # Show the output as it arrives, and keep a copy to inspect afterwards. A pipe would hide
+  # Neovim's exit status in a plain sh, so the status is written to a file inside the group.
+  lang_dir=$(mktemp -d "${TMPDIR:-/tmp}/fondue-install.XXXXXX") || die "could not create a temporary folder."
+  trap 'rm -rf "$lang_dir"' EXIT
+  {
+    NVIM_APPNAME=$APPNAME nvim --headless "+lua require('fondue.setup').run()" +qa 2>&1
+    echo $? > "$lang_dir/status"
+  } | tee "$lang_dir/output"
+  lang_rc=$(cat "$lang_dir/status" 2>/dev/null)
+  [ -n "$lang_rc" ] || lang_rc=1
+  # Lines with "  installed  " are things this run added. (Not anchored to the start of the line: Neovim
+  # sometimes ends one of its own messages without a line break, and our line then follows it directly.)
+  if grep -q '  installed  ' "$lang_dir/output"; then
+    CHANGES=$((CHANGES + 1))
+  fi
+  if [ "$lang_rc" -ne 0 ]; then
+    say "  Language tooling: some items failed (named above). Fix the cause, then run this installer again."
+    FAILED=1
+  elif ! grep -q '  finished   language tooling steps complete' "$lang_dir/output"; then
+    # Neovim exited normally but the setup never said it finished: an error stopped it early
+    # (Neovim's own exit status is 0 even when a command raises an error).
+    say "  Language tooling did not finish (an error stopped it; see the lines above). Fix the cause, then run this installer again."
+    FAILED=1
+  fi
+  rm -rf "$lang_dir"
+  trap - EXIT
+fi
+
+# --- Step 5: repository safety ---------------------------------------------------------
+step "5/5 Repository safety setup (push-time secret scan)"
 if [ -e "$REPO_DIR/.git" ] || [ -e "$REPO_DIR/.jj" ]; then
   if [ "$DRY_RUN" -eq 1 ]; then
     "$SCRIPT_DIR/setup-repo" --dry-run "$REPO_DIR" || FAILED=1
