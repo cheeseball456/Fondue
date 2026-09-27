@@ -25,6 +25,130 @@ return {
     { lhs = "<leader>u", desc = "Undo tree", action = "<cmd>packadd nvim.undotree | Undotree<cr>" },
     { lhs = "<leader>p", desc = "Plugin manager", action = "<cmd>Lazy<cr>" },
 
+    -- File tree: a fallback for unfamiliar territory, not the everyday way to move
+    -- around (that stays LSP go-to-definition and fuzzy file search, below). Reveals
+    -- the current file's position in the tree, rather than always the project root;
+    -- an unnamed buffer (for example the start screen) has nothing to reveal. If the
+    -- tree is already open but not focused (for example the cursor moved back into
+    -- the code), pressing this again moves focus into it, rather than doing nothing;
+    -- pressing it while focus is already in the tree still toggles it closed, as before.
+    -- "Already in the tree" checks all three of its own windows (fondue.lib.session's
+    -- own `TREE_FILETYPES`, shared rather than re-typed here so the two cannot drift
+    -- apart the way an earlier version of this check did).
+    {
+      lhs = "<leader>e",
+      desc = "File tree",
+      action = function()
+        local explorer = Snacks.picker.get({ source = "explorer" })[1]
+        if explorer and not require("fondue.lib.session").TREE_FILETYPES[vim.bo.filetype] then
+          explorer:focus()
+        elseif vim.api.nvim_buf_get_name(0) ~= "" then
+          Snacks.explorer.reveal()
+        else
+          Snacks.explorer.open()
+        end
+      end,
+    },
+
+    -- Pinned files: up to four, remembered only for this session.
+    {
+      lhs = "<leader>m",
+      desc = "Pin current file",
+      action = function()
+        require("fondue.lib.pins").pin()
+      end,
+    },
+    {
+      lhs = "<leader>1",
+      desc = "Jump to pin 1",
+      action = function()
+        require("fondue.lib.pins").jump(1)
+      end,
+    },
+    {
+      lhs = "<leader>2",
+      desc = "Jump to pin 2",
+      action = function()
+        require("fondue.lib.pins").jump(2)
+      end,
+    },
+    {
+      lhs = "<leader>3",
+      desc = "Jump to pin 3",
+      action = function()
+        require("fondue.lib.pins").jump(3)
+      end,
+    },
+    {
+      lhs = "<leader>4",
+      desc = "Jump to pin 4",
+      action = function()
+        require("fondue.lib.pins").jump(4)
+      end,
+    },
+
+    -- Search group, all through snacks.picker except sr, which needs its own
+    -- review-and-confirm step and so opens grug-far instead.
+    {
+      lhs = "<leader>sf",
+      desc = "Find files",
+      action = function()
+        Snacks.picker.files()
+      end,
+    },
+    {
+      lhs = "<leader>st",
+      desc = "Search text (project)",
+      action = function()
+        Snacks.picker.grep()
+      end,
+    },
+    { lhs = "<leader>sr", desc = "Search and replace (project)", action = "<cmd>GrugFar<cr>" },
+    {
+      lhs = "<leader>so",
+      desc = "Recent files",
+      action = function()
+        Snacks.picker.recent()
+      end,
+    },
+    {
+      lhs = "<leader>sb",
+      desc = "Open buffers",
+      action = function()
+        Snacks.picker.buffers()
+      end,
+    },
+    {
+      lhs = "<leader>sk",
+      desc = "Search keymaps",
+      action = function()
+        Snacks.picker.keymaps()
+      end,
+    },
+    {
+      lhs = "<leader>sh",
+      desc = "Search help",
+      action = function()
+        Snacks.picker.help()
+      end,
+    },
+
+    -- Diagnostics and TODOs: two lists that feel like one family.
+    {
+      lhs = "<leader>fl",
+      desc = "Diagnostics (project)",
+      action = function()
+        Snacks.picker.diagnostics()
+      end,
+    },
+    {
+      lhs = "<leader>ft",
+      desc = "TODO / FIXME list",
+      action = function()
+        Snacks.picker.todo_comments()
+      end,
+    },
+
     -- Code tools. Formatting happens only when you press this; never on save.
     {
       mode = { "n", "x" },

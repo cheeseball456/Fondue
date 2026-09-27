@@ -24,6 +24,12 @@ M.settings = {
   -- The word background is tinted with the colour of the first of these highlight groups that
   -- gives a colour different enough from the cursor line and the selection.
   word_tints = { "Function", "Special", "Identifier", "Type", "String" },
+  -- How clearly the fuzzy finder's dimmed path text (the folder part shown to tell two
+  -- same-named files apart) stands out from the background. It links to NonText by
+  -- default, which some colourschemes render too close to the background to read
+  -- comfortably; this nudges it up a little while keeping it visibly secondary to the
+  -- filename itself (which keeps its own full-contrast colour, unchanged).
+  picker_path_contrast = 3.5,
   -- Indent guides follow the bracket colours (rainbow-delimiters), one per nesting depth. When
   -- the scheme does not define those groups, these are the colours rainbow-delimiters uses.
   bracket_colours = {
@@ -194,6 +200,17 @@ local function apply_word_highlight(background)
   M.chosen.word = { colour = best.colour, tint = best.tint, cursor_line = cursor_line, selection = selection, distance = best_score }
 end
 
+-- snacks.picker's `SnacksPickerDir` group (the folder part of a path, shown dimmed
+-- to tell same-named files in different folders apart, see the fuzzy-finding spec):
+-- linked to NonText by default (lua/snacks/picker/config/highlights.lua). Only this one
+-- group is adjusted, not NonText itself, which is used elsewhere for its own purpose.
+local function apply_picker_path(background)
+  local base = group_colour("NonText", "fg") or 0x808080
+  local colour = with_contrast(base, background, M.settings.picker_path_contrast)
+  vim.api.nvim_set_hl(0, "SnacksPickerDir", { fg = colour })
+  M.chosen.picker_path = { base = base, colour = colour }
+end
+
 function M.apply()
   local background = group_colour("Normal", "bg")
   if not background then
@@ -203,6 +220,7 @@ function M.apply()
   M.chosen.background = background
   apply_indent_guides(background)
   apply_word_highlight(background)
+  apply_picker_path(background)
 end
 
 -- Work the colours out now, and again every time the colourscheme changes.
@@ -234,6 +252,10 @@ function M.describe()
         M.contrast(c.scope, M.chosen.background)
       )
     )
+  end
+  local p = M.chosen.picker_path
+  if p then
+    table.insert(lines, string.format("fuzzy-finder path text %s (%.2f:1 against the background, from NonText %s)", hex(p.colour), M.contrast(p.colour, M.chosen.background), hex(p.base)))
   end
   local w = M.chosen.word
   if w then

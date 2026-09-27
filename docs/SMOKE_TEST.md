@@ -31,10 +31,11 @@ Work through it top to bottom and note anything that fails.
 
 ## Keys
 
-- [ ] Press `Space` and wait: the menu lists `w Save`, `u Undo tree`, `p Plugin manager`, and the
-      groups `c Code tools` and `f Fix`. (A group such as Search appears in the menu once it
-      contains keys.) Press `c`: the menu lists `f` (format) and `h` (inlay hints). Press `Space f`:
-      it lists `a` (code action).
+- [ ] Press `Space` and wait: the menu lists `w Save`, `u Undo tree`, `p Plugin manager`,
+      `e File tree`, `m Pin current file`, `1` to `4` (jump to a pinned file), and the groups
+      `c Code tools`, `f Fix` and `s Search`. Press `c`: the menu lists `f` (format) and `h`
+      (inlay hints). Press `Space f`: it lists `a` (code action), `l` (diagnostics) and `t`
+      (TODO list). Press `Space s`: it lists `f`, `t`, `r`, `o`, `b`, `k` and `h`.
 - [ ] `Space w` saves the current buffer.
 - [ ] `Space u` opens the undo tree; pressing `Space u` again closes it.
 - [ ] `Space p` opens the lazy.nvim plugin manager window.
@@ -166,9 +167,62 @@ These keys are the plugin's own insert-mode keys (they are not `Space` keys).
       allows OSC 52 writes; kitty does by default). `:checkhealth fondue` in that session
       reports "OSC 52 clipboard provider is in use".
 
-## Starting Neovim on a directory
+## Finding files and text
 
-- [ ] `nvim .` opens an empty buffer. It does not show a directory listing.
+- [ ] `Space s f` opens a fuzzy file search. In a project with two files sharing a name in
+      different folders, both appear, distinguishable by their path.
+- [ ] `Space s t` searches text across the whole project; selecting a result jumps straight to
+      that match in that file.
+- [ ] `Space s o` lists recently opened files, `Space s b` lists open buffers, `Space s k`
+      searches this configuration's own keymaps (try searching "format"), and `Space s h`
+      searches Neovim's help — each opens or jumps to what you pick.
+- [ ] `Space s r` opens a search-and-replace view covering the whole project, separate from
+      `Space s t`. Type a search and a replacement: it shows the proposed changes across every
+      matching file before anything is written. Closing it without confirming leaves every file
+      untouched; running its replace action writes the change to every matching file at once.
+
+## The file tree
+
+- [ ] `Space e` opens a file tree of the project. It is a fallback for browsing unfamiliar
+      territory — day to day, go-to-definition and fuzzy file search (above) stay the quicker way
+      to move around.
+- [ ] With a file open two folders deep, `Space e` opens the tree already showing that file, with
+      its parent folders expanded, rather than always starting at the project root.
+
+## Centred layout
+
+- [ ] A normal code file sits roughly in the middle third of the window, not flush to the left
+      edge, including its line numbers and sign column.
+- [ ] Resize the terminal: the centred column adjusts to stay roughly a third of the new width.
+- [ ] Open the file tree (`Space e`) next to a centred file: both remain usable, and closing the
+      tree again restores the same centred padding as before.
+
+## Sessions and the start screen
+
+- [ ] In a project directory with no previous session, `nvim` (or `nvim .`) shows a minimal start
+      screen — at least a list of recent files and a way to open a new file — instead of an empty
+      buffer or a directory listing.
+- [ ] Open a file in that directory, then quit. Running `nvim` (or `nvim .`) there again restores
+      the buffers and splits from last time, not the start screen.
+- [ ] `nvim` in a *different* project directory never shows the first directory's buffers: each
+      directory keeps its own session.
+- [ ] `nvim <file>` always opens that file directly — no restore, no start screen, either way.
+
+## Diagnostics and TODOs
+
+- [ ] With problems in two open files, `Space f l` lists every diagnostic across both, not only
+      the current file; selecting one jumps straight to it.
+- [ ] A comment such as `# TODO: fix this` is visually distinguished from an ordinary comment
+      (the same applies to `FIXME`, `WARN` and `NOTE`), and `Space f t` lists every such comment
+      across the project, jumping to the one you pick.
+
+## Pinning files
+
+- [ ] `Space m` pins the current file (up to four at a time); `Space 1` through `Space 4` jump
+      straight to a pinned file. Pinning a fifth file is refused with a message rather than
+      silently replacing one of the first four.
+- [ ] Pins do not survive a restart: quit and reopen Neovim in the same directory, and no file is
+      pinned.
 
 ## After you update plugins
 

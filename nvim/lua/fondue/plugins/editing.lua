@@ -16,20 +16,23 @@ return {
     version = "^2",
     lazy = false, -- bigfile and indent must be ready before the first file is read
     priority = 1000,
-    opts = function()
+    -- Accepts and extends the opts already built (rather than returning a fresh table),
+    -- because plugins/navigation.lua adds a second spec entry for this same plugin: lazy.nvim
+    -- runs every entry's `opts` function in turn, and whichever ran first would be lost if
+    -- either entry replaced the table instead of adding to it.
+    opts = function(_, opts)
       -- The guide colours (one group per nesting depth) are worked out in highlights.lua.
       local highlights = require("fondue.highlights")
-      return {
-        bigfile = { enabled = true },
-        indent = {
-          enabled = true,
-          indent = { hl = highlights.guide_groups },
-          scope = { hl = highlights.scope_groups },
-          -- The full-colour scope guide is enough; no extra corner "chunk" drawing.
-          chunk = { enabled = false },
-        },
-        words = { enabled = true },
+      opts.bigfile = { enabled = true }
+      opts.indent = {
+        enabled = true,
+        indent = { hl = highlights.guide_groups },
+        scope = { hl = highlights.scope_groups },
+        -- The full-colour scope guide is enough; no extra corner "chunk" drawing.
+        chunk = { enabled = false },
       }
+      opts.words = { enabled = true }
+      return opts
     end,
   },
   {

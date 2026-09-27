@@ -9,6 +9,13 @@ support): syntax highlighting and folds from real syntax trees, language servers
 snippets, formatting only when you ask (`Space c f`), shellcheck for bash, bracket pairing, surround
 editing, indent guides, and UK English spell checking. Nothing is saved or formatted automatically.
 
+Moving around a project is built in too: fuzzy file and text search with project-wide
+search-and-replace (`Space s`), a file tree as a fallback for unfamiliar territory (`Space e`),
+text centred to roughly the middle third of the window, a project-wide diagnostics list and TODO
+list (`Space f`), up to four pinned files (`Space m`, `Space 1`-`4`), and a session that picks up
+where you left off (or a minimal start screen when there is nothing to restore) every time you
+open a project directory.
+
 **Supported systems:** macOS (Homebrew) and Arch Linux (pacman). Windows is not supported.
 **Requires:** Neovim 0.12 or later.
 
