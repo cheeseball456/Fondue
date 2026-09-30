@@ -30,6 +30,21 @@ M.settings = {
   -- comfortably; this nudges it up a little while keeping it visibly secondary to the
   -- filename itself (which keeps its own full-contrast colour, unchanged).
   picker_path_contrast = 3.5,
+  -- How clearly a terminal window's background stands out while it is in terminal mode
+  -- (typing into the shell) -- FR-003's "terminal mode is visually distinguishable from
+  -- normal mode", added after interactive verification found Neovim's own small
+  -- `-- TERMINAL --` status text too easy to miss. Applied to the *whole* window (see
+  -- `fondue.core.terminal_mode`), so this is deliberately gentler than `word_contrast`
+  -- (which only tints a few characters' worth of background): strong enough to notice
+  -- immediately at a glance, not so strong that a whole pane of shell scrollback becomes
+  -- uncomfortable to read while typing into it.
+  terminal_mode_contrast = 1.6,
+  -- Like `word_min_distance`, but also kept apart from the word-highlight background
+  -- itself, so "typing into a terminal" is never mistaken for "other uses of this word".
+  terminal_mode_min_distance = 25,
+  -- Tried in order, same idea as `word_tints`; a different first choice, so the two
+  -- highlights do not routinely end up as the same colour on schemes that define both.
+  terminal_mode_tints = { "DiagnosticWarn", "String", "Special", "Function", "Identifier" },
   -- Indent guides follow the bracket colours (rainbow-delimiters), one per nesting depth. When
   -- the scheme does not define those groups, these are the colours rainbow-delimiters uses.
   bracket_colours = {
@@ -50,6 +65,10 @@ for depth = 1, #M.settings.bracket_colours do
   M.guide_groups[depth] = "FondueIndent" .. depth
   M.scope_groups[depth] = "FondueIndentScope" .. depth
 end
+
+-- The highlight group `fondue.core.terminal_mode` links a terminal window's `Normal`
+-- (and `NormalNC`) to while it is in terminal mode.
+M.terminal_mode_group = "FondueTerminalMode"
 
 -- ---------------------------------------------------------------------------------------
 -- Colour arithmetic. Colours are numbers like 0xRRGGBB.
@@ -159,6 +178,36 @@ local function apply_indent_guides(background)
   M.chosen.guides = chosen
 end
 
+-- Tint `background` with the first of `tints` (highlight group names, read for their
+-- `fg`) that reaches `contrast` against `background` while staying at least
+-- `min_distance` away from every colour in `avoid` -- shared by the word highlight and
+-- the terminal-mode cue below, which both pick "a scheme colour, clearly different from
+-- a short list of colours already in use nearby" for the same reason: neither must be
+-- mistaken for the cursor line, the selection, or (for the terminal-mode cue) the word
+-- highlight itself. Falls back to whichever candidate got closest, if none clears
+-- `min_distance` outright, the same way the word highlight always did before this was
+-- extracted -- no behaviour change for it, just shared with the new caller.
+local function pick_tint(background, tints, contrast, min_distance, avoid)
+  local best, best_score
+  for _, name in ipairs(tints) do
+    local tint = group_colour(name, "fg")
+    if tint then
+      local candidate = reach_contrast(background, tint, background, contrast)
+      local score = math.huge
+      for _, other in ipairs(avoid) do
+        score = math.min(score, M.distance(candidate, other))
+      end
+      if not best or score > best_score then
+        best, best_score = { colour = candidate, tint = name }, score
+      end
+      if score >= min_distance then
+        return { colour = candidate, tint = name, distance = score }
+      end
+    end
+  end
+  return best and { colour = best.colour, tint = best.tint, distance = best_score } or nil
+end
+
 local function apply_word_highlight(background)
   local cursor_line = group_colour("CursorLine", "bg")
   local selection = group_colour("Visual", "bg")
@@ -170,34 +219,46 @@ local function apply_word_highlight(background)
     others[#others + 1] = selection
   end
 
-  -- Tint the background with a scheme colour, strongly enough to reach the wanted contrast with
-  -- the normal background; keep the first tint that is clearly unlike the cursor line and selection.
-  local best, best_score
-  for _, name in ipairs(M.settings.word_tints) do
-    local tint = group_colour(name, "fg")
-    if tint then
-      local candidate = reach_contrast(background, tint, background, M.settings.word_contrast)
-      local score = math.huge
-      for _, other in ipairs(others) do
-        score = math.min(score, M.distance(candidate, other))
-      end
-      if not best or score > best_score then
-        best, best_score = { colour = candidate, tint = name }, score
-      end
-      if score >= M.settings.word_min_distance then
-        best = { colour = candidate, tint = name }
-        best_score = score
-        break
-      end
-    end
-  end
+  local best = pick_tint(background, M.settings.word_tints, M.settings.word_contrast, M.settings.word_min_distance, others)
   if not best then
     return
   end
   for _, name in ipairs({ "LspReferenceText", "LspReferenceRead", "LspReferenceWrite" }) do
     vim.api.nvim_set_hl(0, name, { bg = best.colour })
   end
-  M.chosen.word = { colour = best.colour, tint = best.tint, cursor_line = cursor_line, selection = selection, distance = best_score }
+  M.chosen.word = { colour = best.colour, tint = best.tint, cursor_line = cursor_line, selection = selection, distance = best.distance }
+end
+
+-- The terminal-mode cue (FR-003, `fondue.core.terminal_mode`): a background tint for a
+-- terminal window's `Normal`/`NormalNC`, applied only while it is in terminal mode.
+-- Avoids the cursor line, the selection, and the word highlight's own background, so
+-- none of the three is ever mistaken for another.
+local function apply_terminal_mode(background)
+  local cursor_line = group_colour("CursorLine", "bg")
+  local selection = group_colour("Visual", "bg")
+  local others = {}
+  if cursor_line then
+    others[#others + 1] = cursor_line
+  end
+  if selection then
+    others[#others + 1] = selection
+  end
+  if M.chosen.word then
+    others[#others + 1] = M.chosen.word.colour
+  end
+
+  local best = pick_tint(
+    background,
+    M.settings.terminal_mode_tints,
+    M.settings.terminal_mode_contrast,
+    M.settings.terminal_mode_min_distance,
+    others
+  )
+  if not best then
+    return
+  end
+  vim.api.nvim_set_hl(0, M.terminal_mode_group, { bg = best.colour })
+  M.chosen.terminal_mode = { colour = best.colour, tint = best.tint, distance = best.distance }
 end
 
 -- snacks.picker's `SnacksPickerDir` group (the folder part of a path, shown dimmed
@@ -220,6 +281,7 @@ function M.apply()
   M.chosen.background = background
   apply_indent_guides(background)
   apply_word_highlight(background)
+  apply_terminal_mode(background) -- after the word highlight, so it can avoid its colour
   apply_picker_path(background)
 end
 
@@ -270,6 +332,18 @@ function M.describe()
         w.cursor_line and M.distance(w.colour, w.cursor_line) or -1,
         hex(w.selection),
         w.selection and M.distance(w.colour, w.selection) or -1
+      )
+    )
+  end
+  local t = M.chosen.terminal_mode
+  if t then
+    table.insert(
+      lines,
+      string.format(
+        "terminal-mode cue %s (%.2f:1 against the background, tinted with %s)",
+        hex(t.colour),
+        M.contrast(t.colour, M.chosen.background),
+        t.tint
       )
     )
   end

@@ -92,3 +92,4 @@ require("fondue.treesitter").setup() -- highlighting and folds per file type
 require("fondue.spell").setup() -- UK English spelling
 require("fondue.highlights").setup() -- indent guide and word highlight colours, from the colourscheme
 require("fondue.lib.session").setup() -- restore a session for `nvim`/`nvim .`, or show the start screen
+require("fondue.lib.claude").setup() -- quit-time warning when a Claude session is still running

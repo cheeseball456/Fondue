@@ -25,6 +25,18 @@ return {
     { lhs = "<leader>u", desc = "Undo tree", action = "<cmd>packadd nvim.undotree | Undotree<cr>" },
     { lhs = "<leader>p", desc = "Plugin manager", action = "<cmd>Lazy<cr>" },
 
+    -- Test/run terminal: full-window, toggled open and closed. Only one terminal
+    -- exists at a time (FR-003, REQUIREMENTS.md v1.22) -- an earlier count-prefix
+    -- ad-hoc-terminal feature was implemented and then withdrawn; see
+    -- `lib/terminals.lua`'s own history comment and design.md's "D2 correction" (10.1).
+    {
+      lhs = "<leader>t",
+      desc = "Show/hide the test/run terminal",
+      action = function()
+        require("fondue.lib.terminals").toggle_test_run()
+      end,
+    },
+
     -- File tree: a fallback for unfamiliar territory, not the everyday way to move
     -- around (that stays LSP go-to-definition and fuzzy file search, below). Reveals
     -- the current file's position in the tree, rather than always the project root;
@@ -146,6 +158,29 @@ return {
       desc = "TODO / FIXME list",
       action = function()
         Snacks.picker.todo_comments()
+      end,
+    },
+
+    -- AI (Claude) group: the panel starts hidden and unopened, so `<leader>aa` and
+    -- `<leader>af` both go through fondue.lib.claude, which derives the session name,
+    -- attaches/resumes/starts as needed (FR-043), and (task 13.2) guards against
+    -- showing/focusing the panel into a state the test/run terminal's float would
+    -- occlude -- neither key ever calls `:ClaudeCode`/`:ClaudeCodeFocus` directly
+    -- itself, so that guard cannot be bypassed by either one. Esc is deliberately left
+    -- alone here (Claude Code uses it itself, for interrupt and rewind), unlike the
+    -- test/run terminal above.
+    {
+      lhs = "<leader>aa",
+      desc = "Show/hide the Claude panel",
+      action = function()
+        require("fondue.lib.claude").open()
+      end,
+    },
+    {
+      lhs = "<leader>af",
+      desc = "Focus the Claude panel",
+      action = function()
+        require("fondue.lib.claude").focus()
       end,
     },
 
